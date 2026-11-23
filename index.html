@@ -111,6 +111,18 @@
   .panel-heading a { color: var(--accent); font-size: .88rem; font-weight: 700; text-underline-offset: .16em; }
   .overview-list { margin: .5rem 0 0; padding: 0; list-style: none; }
   .overview-list:empty { display: none; }
+  .upcoming-total {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: .25rem .75rem;
+    margin-top: 1rem;
+    padding-top: .85rem;
+    border-top: 1px solid var(--line);
+    font-size: .9rem;
+  }
+  .upcoming-total strong { color: var(--accent); font-size: 1.15rem; font-variant-numeric: tabular-nums; }
   .overview-list li { display: flex; justify-content: space-between; align-items: baseline; gap: .7rem; padding: .75rem 0; border-bottom: 1px solid var(--line); }
   .overview-list li:last-child { border-bottom: 0; padding-bottom: 0; }
   .overview-list li > div { min-width: 0; overflow-wrap: anywhere; }
@@ -177,6 +189,10 @@
         <div class="panel-heading"><h2 id="upcoming-title">Upcoming bills</h2><a href="#bills">View bills</a></div>
         <p class="note" id="upcoming-empty">No unpaid bills.</p>
         <ul class="overview-list" id="upcoming-list"></ul>
+        <p class="upcoming-total" aria-live="polite">
+          <span id="upcoming-total-label">Total unpaid this month</span>
+          <strong id="upcoming-total-amount">$0.00</strong>
+        </p>
       </section>
 
       <section class="entry-panel cash-flow" aria-labelledby="cash-title">
@@ -595,7 +611,13 @@ function render() {
   }
   renderRows("goals", records.goals, savedText);
 
-  $("home-month").textContent = monthFormat.format(parseDate(selected + "-01"));
+  const selectedMonthLabel = monthFormat.format(parseDate(selected + "-01"));
+  $("home-month").textContent = selectedMonthLabel;
+  const unpaidBillTotal = records.bills
+    .filter((bill) => bill.date && bill.date.slice(0, 7) <= selected && !paidMonthsFor(bill).includes(selected))
+    .reduce((total, bill) => total + bill.amount, 0);
+  $("upcoming-total-label").textContent = "Total unpaid · " + selectedMonthLabel;
+  $("upcoming-total-amount").textContent = money(unpaidBillTotal);
   const balance = income - spending;
   $("home-total").textContent = money(balance);
   $("home-total").classList.toggle("negative", balance < 0);
