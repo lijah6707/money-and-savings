@@ -106,16 +106,11 @@
   .misc-panel { margin-top: 1rem; padding: .75rem; border: 1px solid var(--line); border-radius: .65rem; }
   .misc-panel summary { cursor: pointer; color: var(--accent); font-weight: 700; padding-block: .3rem; }
   .misc-actions { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .6rem; }
-  .savings-planner { margin-bottom: 1rem; }
-  .plan-fields { display: grid; gap: .7rem; margin-block: .85rem; }
-  .plan-fields > label { min-width: 0; }
-  .plan-estimate { padding: .85rem; margin-block: .9rem; border-radius: .65rem; background: var(--blush); }
-  .plan-estimate strong { display: block; font-size: 1.4rem; }
-  .plan-actions { margin-top: 1rem; }
-  .plan-actions li p { margin-top: .25rem; color: var(--muted); }
-  @media (min-width: 760px) {
-    .plan-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  }
+  .savings-estimate { background: var(--blush); }
+  .savings-estimate strong { display: block; margin-top: .4rem; font-size: clamp(1.8rem, 5vw, 2.8rem); overflow-wrap: anywhere; }
+  .saved-goals { margin-top: 1rem; }
+  .saved-goals summary { cursor: pointer; color: var(--accent); font-weight: 700; }
+  .saved-goals .panel-heading { margin-top: .65rem; justify-content: flex-end; }
   .household-bills { display: grid; gap: 1rem; align-items: start; }
   .bill-note { margin: 0 0 .9rem; }
   @media (min-width: 1060px) {
@@ -294,41 +289,20 @@
   </section>
 
   <section id="savings-panel" aria-labelledby="savings-title" hidden>
-    <div class="heading"><h1 id="savings-title" tabindex="-1">Savings</h1><button type="button" class="primary" data-add="goals">Add goal</button></div>
-    <section class="entry-panel savings-planner" aria-labelledby="savings-plan-title">
-      <h2 id="savings-plan-title">Monthly savings calculator</h2>
-      <form id="savings-plan-form">
-        <div class="plan-fields">
-          <label>Budget month <input id="savings-plan-month" type="month"></label>
-          <label>Monthly savings target ($) <input id="savings-plan-target" type="number" min="0" max="99999999.99" step=".01" inputmode="decimal" placeholder="Optional"></label>
-          <label>More spending expected this month ($) <input id="savings-plan-expected" type="number" min="0" max="99999999.99" step=".01" inputmode="decimal" placeholder="0"></label>
-          <label>Logged expenses already counted in bills ($) <input id="savings-plan-overlap" type="number" min="0" step=".01" inputmode="decimal" placeholder="0"></label>
-        </div>
-        <button class="primary" type="submit">Save savings plan</button>
-        <p class="note" id="savings-plan-save" role="status" hidden></p>
-      </form>
-      <dl class="totals">
-        <div><dt>Income</dt><dd id="savings-plan-income">$0.00</dd></div>
-        <div><dt>Bills due this month</dt><dd id="savings-plan-bills">$0.00</dd></div>
-        <div><dt>Other spending logged</dt><dd id="savings-plan-spending">$0.00</dd></div>
-        <div><dt>Expected additional spending</dt><dd id="savings-plan-more">$0.00</dd></div>
-      </dl>
-      <div class="plan-estimate" aria-live="polite">
-        <span>Estimated amount you could save</span>
-        <strong id="savings-plan-result">—</strong>
-        <p id="savings-plan-message"></p>
-      </div>
-      <div class="plan-actions">
-        <h2>Ways to save</h2>
-        <p id="savings-plan-guidance" class="note"></p>
-        <ul class="list" id="savings-plan-tips"></ul>
-      </div>
+    <div class="heading">
+      <div><h1 id="savings-title" tabindex="-1">Savings</h1><p id="savings-month" class="sub"></p></div>
+    </div>
+    <section class="entry-panel savings-estimate" aria-labelledby="savings-estimate-title" aria-live="polite">
+      <h2 id="savings-estimate-title">You could save</h2>
+      <strong id="savings-estimate-amount">—</strong>
+      <p id="savings-estimate-detail" class="sub"></p>
     </section>
-    <div class="entry-panel">
-      <h2>Savings goals</h2>
+    <details class="entry-panel saved-goals">
+      <summary>Savings goals</summary>
+      <div class="panel-heading"><button type="button" class="primary" data-add="goals">Add goal</button></div>
       <p class="note" id="goals-empty">Set a target for your emergency fund or another goal.</p>
       <ul class="list" id="goals-list"></ul>
-    </div>
+    </details>
   </section>
 
   <p class="note">Entries are saved in this browser on this device.</p>
@@ -429,7 +403,6 @@ const getToday = () => {
 };
 const monthInput = $("month-input");
 const miscMonth = $("misc-month");
-const savingsMonth = $("savings-plan-month");
 const starterBillNames = ["Rent or mortgage", "Electricity", "Water", "Internet", "Cell phone", "Car payment", "Car insurance"];
 let records = { transactions: [], bills: [], goals: [] };
 let editState;
@@ -657,80 +630,6 @@ function renderCashFlow(selected, transactions) {
   }));
 }
 
-const spendingIdeas = [
-  { pattern: /\b(takeout|take-out|restaurant|dining|fast food|coffee|doordash|uber eats|grubhub|pizza)\b/i,
-    title: "Takeout and coffee", share: .25, action: "Replace some takeout or coffee runs with meals or drinks from home." },
-  { pattern: /\b(grocery|groceries|food|supermarket)\b/i,
-    title: "Groceries and food", share: .10, action: "Plan meals around groceries you already have and compare unit prices before shopping." },
-  { pattern: /\b(gas|fuel|gasoline|rideshare|lyft|uber)\b/i,
-    title: "Transportation", share: .10, action: "Combine errands or replace an optional rideshare with a lower-cost trip when practical." },
-  { pattern: /\b(shopping|clothing|shoes|amazon|entertainment|movie|games|gaming)\b/i,
-    title: "Shopping and entertainment", share: .20, action: "Set a lower cap and delay optional purchases until next month." }
-];
-
-function renderSavingsPlan(selected, income, hasIncome, bills, billTotal, spending, transactions) {
-  const target = records.savingsTarget;
-  const adjustment = records.savingsAdjustments?.[selected] ?? {};
-  const overlap = Math.min(adjustment.overlap ?? 0, spending, billTotal);
-  const expected = adjustment.expected ?? 0;
-  const otherSpending = spending - overlap;
-  const remainder = income - billTotal - otherSpending - expected;
-  const shortfall = target == null ? null : Math.max(0, target - remainder);
-
-  savingsMonth.value = selected;
-  $("savings-plan-target").value = target == null ? "" : String(target / 100);
-  $("savings-plan-expected").value = expected ? String(expected / 100) : "";
-  $("savings-plan-overlap").max = Math.min(spending, billTotal) / 100;
-  $("savings-plan-overlap").value = overlap ? String(overlap / 100) : "";
-  $("savings-plan-income").textContent = hasIncome ? money(income) : "Not entered";
-  $("savings-plan-bills").textContent = money(billTotal);
-  $("savings-plan-spending").textContent = money(otherSpending);
-  $("savings-plan-more").textContent = money(expected);
-  $("savings-plan-result").textContent = hasIncome ? money(Math.max(0, remainder)) : "—";
-
-  let message = "Enter your monthly income on Home or Budget to see what you could save.";
-  if (hasIncome) {
-    if (remainder < 0) message = "Your expenses exceed income by " + money(-remainder) + ".";
-    else message = "Based on bills and spending entered for this month.";
-    if (target != null) message += shortfall > 0 ? " To save " + money(target) + ", free up " + money(shortfall) + "." : " Your " + money(target) + " target fits this estimate.";
-  }
-  $("savings-plan-message").textContent = message;
-
-  const billNames = new Set(bills.map((bill) => bill.description.trim().toLowerCase()));
-  const categoryTotals = new Map();
-  for (const entry of transactions) {
-    if (entry.type !== "expense" || billNames.has(entry.description.trim().toLowerCase())) continue;
-    const idea = spendingIdeas.find(({ pattern }) => pattern.test(entry.description));
-    if (idea) categoryTotals.set(idea, (categoryTotals.get(idea) ?? 0) + entry.amount);
-  }
-  const ideas = [...categoryTotals].map(([idea, amount]) => ({
-    title: idea.title, action: idea.action, amount: Math.floor(amount * idea.share)
-  }));
-  for (const bill of bills) {
-    if (/\b(netflix|hulu|disney\+?|spotify|apple music|youtube premium|peacock|paramount\+?)\b/i.test(bill.description)) {
-      ideas.push({ title: bill.description, action: "If you rarely use it, check whether you can pause or cancel it before the next renewal.", amount: bill.amount });
-    }
-  }
-  ideas.sort((a, b) => b.amount - a.amount);
-  let gap = shortfall || Infinity;
-  const tips = [];
-  for (const idea of ideas) {
-    const amount = Math.min(gap, idea.amount);
-    if (amount <= 0) continue;
-    const row = element("li");
-    row.append(element("strong", idea.title + " · aim for " + money(amount)), element("p", idea.action));
-    tips.push(row);
-    gap -= amount;
-  }
-  let guidance = "Log expenses with clear names like groceries, gas, or takeout to get suggestions based on your spending. You can also review recurring bills for services you rarely use.";
-  if (tips.length) {
-    guidance = "Ideas for future spending based on your entries for this month. Use these amounts as starting points.";
-    if (Number.isFinite(gap) && gap > 0) guidance += " These ideas cover part of your goal. Look for another " + money(gap) + " in monthly savings.";
-  }
-  $("savings-plan-guidance").textContent = guidance;
-  $("savings-plan-tips").replaceChildren(...tips);
-}
-
 function render() {
   const selected = monthInput.value;
   miscMonth.value = selected;
@@ -776,14 +675,21 @@ function render() {
   $("home-month").textContent = selectedMonthLabel;
   const monthlyBills = records.bills.filter((bill) => bill.date && bill.date.slice(0, 7) <= selected);
   const billTotal = monthlyBills.reduce((total, bill) => total + bill.amount, 0);
-  renderSavingsPlan(selected, income, records.monthlyIncome?.[selected] != null || transactions.some((entry) => entry.type === "income"),
-    monthlyBills, billTotal, spending, transactions);
   const unpaidBillTotal = monthlyBills
     .filter((bill) => !paidMonthsFor(bill).includes(selected))
     .reduce((total, bill) => total + bill.amount, 0);
   const afterBills = income - billTotal;
   $("home-after-bills").textContent = money(afterBills);
   $("home-after-bills").classList.toggle("negative", afterBills < 0);
+  const hasIncome = records.monthlyIncome?.[selected] != null || transactions.some((entry) => entry.type === "income");
+  $("savings-month").textContent = selectedMonthLabel;
+  $("savings-estimate-amount").textContent = hasIncome ? money(Math.max(0, afterBills)) : "—";
+  let savingsDetail = "Enter your monthly income on Home or Budget.";
+  if (hasIncome) {
+    savingsDetail = money(income) + " income − " + money(billTotal) + " in bills";
+    if (afterBills < 0) savingsDetail += " · Bills exceed income by " + money(-afterBills);
+  }
+  $("savings-estimate-detail").textContent = savingsDetail;
   $("upcoming-total-label").textContent = "Total unpaid · " + selectedMonthLabel;
   $("upcoming-total-amount").textContent = money(unpaidBillTotal);
   const balance = income - spending;
@@ -906,22 +812,10 @@ $("income-form").addEventListener("submit", (event) => {
 });
 $("income-clear").addEventListener("click", () => saveMonthlyIncome(null));
 $("income-cancel").addEventListener("click", () => incomeEditor.close());
-[monthInput, miscMonth, savingsMonth].forEach((input) => input.addEventListener("change", () => {
+[monthInput, miscMonth].forEach((input) => input.addEventListener("change", () => {
   monthInput.value = /^[0-9]{4}-(0[1-9]|1[0-2])$/.test(input.value) ? input.value : getToday().slice(0, 7);
-  warn("", $("savings-plan-save"));
   render();
 }));
-$("savings-plan-form").addEventListener("submit", (event) => {
-  event.preventDefault();
-  const target = $("savings-plan-target").value;
-  const expected = Math.round(Number($("savings-plan-expected").value) * 100);
-  const overlap = Math.round(Number($("savings-plan-overlap").value) * 100);
-  const savingsTarget = target === "" ? null : Math.round(Number(target) * 100);
-  const savingsAdjustments = { ...records.savingsAdjustments, [monthInput.value]: { expected, overlap } };
-  if (save({ ...records, savingsTarget, savingsAdjustments }, $("savings-plan-save"))) {
-    warn("Savings plan saved.", $("savings-plan-save"));
-  }
-});
 $("cancel").addEventListener("click", () => editor.close());
 form.addEventListener("input", () => form.elements.description.setCustomValidity(""));
 
