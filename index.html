@@ -102,7 +102,16 @@
   #income-form > label { margin: 1rem 0; }
   .overview-totals .negative { color: #ff9eaa; }
   .entry-panel { min-width: 0; }
-  .misc-month { max-width: 15rem; margin-bottom: 1rem; }
+  .month-control { max-width: 15rem; margin-bottom: 1rem; }
+  .payday { margin-bottom: 1rem; }
+  .payday input { max-width: 15rem; }
+  .payday form, .backup-actions { display: flex; align-items: end; flex-wrap: wrap; gap: .55rem; margin-top: .75rem; }
+  .payday #payday-message { margin-top: .65rem; }
+  .backup-panel { margin-top: 1rem; }
+  .backup-panel summary { cursor: pointer; color: var(--accent); font-weight: 700; }
+  #bill-payment-form > label { margin-block: .85rem; }
+  #bill-payment-form .checkbox-label { display: flex; align-items: center; gap: .55rem; }
+  #bill-payment-form input[type="checkbox"] { min-height: 0; width: 1.15rem; height: 1.15rem; accent-color: var(--accent); }
   .misc-panel { margin-top: 1rem; padding: .75rem; border: 1px solid var(--line); border-radius: .65rem; }
   .misc-panel summary { cursor: pointer; color: var(--accent); font-weight: 700; padding-block: .3rem; }
   .misc-actions { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .6rem; }
@@ -182,12 +191,23 @@
 </header>
 <main class="shell">
   <p id="storage-error" class="error" role="alert" hidden></p>
+  <label class="month-control">Budget month <input id="month-input" type="month"></label>
 
   <section id="home-panel" aria-labelledby="home-title">
     <div class="heading">
       <div><h1 id="home-title" tabindex="-1">Bills overview</h1><p id="home-month" class="sub"></p></div>
       <button type="button" class="primary" id="quick-transaction">Add transaction</button>
     </div>
+    <section class="entry-panel payday" aria-labelledby="payday-title">
+      <h2 id="payday-title">Bills due by next payday</h2>
+      <form id="payday-form">
+        <label>Next payday <input id="payday-date" type="date" required></label>
+        <button class="primary" id="save-payday" type="submit">Set payday</button>
+        <button class="quiet" id="clear-payday" type="button" hidden>Clear date</button>
+      </form>
+      <p class="note" id="payday-message" aria-live="polite"></p>
+      <ul class="overview-list" id="payday-list"></ul>
+    </section>
     <div class="dashboard">
       <dl class="overview-totals" aria-label="Monthly budget totals">
         <div><dt>Left this month</dt><dd id="home-total">$0.00</dd></div>
@@ -233,7 +253,6 @@
   <section id="budget-panel" aria-labelledby="budget-title" hidden>
     <div class="heading"><h1 id="budget-title" tabindex="-1">Budget</h1><button type="button" class="primary" data-add="transactions">Add transaction</button></div>
     <div class="entry-panel">
-      <label>Budget month <input id="month-input" type="month"></label>
       <dl class="totals">
         <div class="income-card"><dt><button type="button" data-edit-income aria-haspopup="dialog" aria-label="Edit monthly income" aria-describedby="budget-income">Income</button></dt><dd id="budget-income">$0.00</dd></div>
         <div><dt>Spending</dt><dd id="budget-spending">$0.00</dd></div>
@@ -248,7 +267,6 @@
     <div class="heading"><div><h1 id="bills-title" tabindex="-1">Bills</h1><p id="bills-month" class="sub"></p></div></div>
     <p class="note bill-note">Bills repeat monthly. Paid status resets at the start of each month.</p>
     <p class="note bill-note" id="starter-bills-note" hidden>Set up any starter bill with your amount and due date, or remove it from the list.</p>
-    <label class="misc-month">Miscellaneous month <input id="misc-month" type="month"></label>
     <div class="household-bills">
       <section class="entry-panel" aria-labelledby="husband-bills-title">
         <div class="panel-heading">
@@ -285,7 +303,7 @@
         </details>
       </section>
     </div>
-    <p class="note">To include a paid bill in your budget, add it as an expense under Budget.</p>
+    <p class="note">Use <strong>Mark paid &amp; log expense</strong> to track the payment in Budget.</p>
   </section>
 
   <section id="savings-panel" aria-labelledby="savings-title" hidden>
@@ -305,6 +323,16 @@
     </details>
   </section>
 
+  <details class="entry-panel backup-panel">
+    <summary>Backup &amp; restore</summary>
+    <p class="note">Download your data or restore it on this browser from a Money &amp; Savings backup.</p>
+    <div class="backup-actions">
+      <button class="secondary" id="backup-export" type="button">Download backup</button>
+      <button class="quiet" id="backup-restore" type="button">Restore backup</button>
+      <input id="backup-file" type="file" accept=".json,application/json" aria-label="Choose a Money &amp; Savings backup" hidden>
+    </div>
+    <p class="note" id="backup-status" role="status" hidden></p>
+  </details>
   <p class="note">Entries are saved in this browser on this device.</p>
 </main>
 
@@ -326,6 +354,23 @@
       <button type="button" class="quiet delete" id="delete-record" hidden>Delete</button>
       <button type="button" class="secondary" id="cancel">Cancel</button>
       <button type="submit" class="primary">Save</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="bill-payment" aria-labelledby="bill-payment-title">
+  <form id="bill-payment-form">
+    <h2 id="bill-payment-title">Record payment</h2>
+    <p id="bill-payment-summary" class="sub"></p>
+    <label>Payment date <input id="bill-payment-date" type="date" required></label>
+    <label class="checkbox-label">
+      <input id="bill-payment-existing" type="checkbox">
+      I already logged this expense in Budget
+    </label>
+    <p id="bill-payment-error" class="error" role="alert" hidden></p>
+    <div class="dialog-actions">
+      <button id="bill-payment-cancel" class="secondary" type="button">Cancel</button>
+      <button class="primary" type="submit">Save payment</button>
     </div>
   </form>
 </dialog>
@@ -402,7 +447,10 @@ const getToday = () => {
   return [now.getFullYear(), now.getMonth() + 1, now.getDate()].map((part) => String(part).padStart(2, "0")).join("-");
 };
 const monthInput = $("month-input");
-const miscMonth = $("misc-month");
+const paymentDialog = $("bill-payment");
+let paymentBill;
+const editControls = [quickTransaction, ...Object.values(addButtons), ...Object.values(billButtons), ...incomeButtons,
+  ...Object.values(miscExpenseButtons), ...Object.values(miscBillButtons), $("save-payday"), $("clear-payday"), $("backup-export")];
 const starterBillNames = ["Rent or mortgage", "Electricity", "Water", "Internet", "Cell phone", "Car payment", "Car insurance"];
 let records = { transactions: [], bills: [], goals: [] };
 let editState;
@@ -416,7 +464,7 @@ try {
 } catch {
   storageReady = false;
   warn("Saved entries could not be loaded. Check your browser’s storage settings or reload the page.");
-  [quickTransaction, ...Object.values(addButtons), ...Object.values(billButtons), ...incomeButtons, ...Object.values(miscExpenseButtons), ...Object.values(miscBillButtons)].forEach((button) => { button.disabled = true; });
+  editControls.forEach((control) => { control.disabled = true; });
 }
 if (storageReady) {
   records.bills = records.bills.filter((bill) => bill.date ||
@@ -449,13 +497,17 @@ function warn(message, target = $("storage-error")) {
   target.hidden = !message;
 }
 
-function save(next, errorTarget) {
-  if (!storageReady) return false;
+function save(next, errorTarget, restoring = false) {
+  if (!storageReady && !restoring) return false;
   try {
     localStorage.setItem(storageKey, JSON.stringify(next));
   } catch {
     warn("Your change could not be saved on this device. Check your browser’s storage settings.", errorTarget);
     return false;
+  }
+  if (!storageReady) {
+    storageReady = true;
+    editControls.forEach((control) => { control.disabled = false; });
   }
   records = next;
   warn("");
@@ -536,6 +588,170 @@ function billTiming(bill, today) {
   return bill.graceEnd ? timing + " · Grace through " + dateFormat.format(bill.graceEnd) : timing;
 }
 
+const validMonth = (month) => typeof month === "string" && /^(?!0000)\d{4}-(0[1-9]|1[0-2])$/.test(month);
+const validDay = (day) => {
+  if (typeof day !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(day) || !validMonth(day.slice(0, 7))) return false;
+  return parseDate(day).getDate() === Number(day.slice(-2));
+};
+
+function billPaymentMatch(entry, bill) {
+  return entry.billId === bill.id && entry.billMonth === bill.dueDate.slice(0, 7);
+}
+
+function openBillPayment(bill) {
+  paymentBill = bill;
+  $("bill-payment-summary").textContent = bill.description + " · " + money(bill.amount) + " · Due " + dateText(bill.dueDate);
+  const field = $("bill-payment-date");
+  field.max = getToday();
+  field.value = field.max;
+  $("bill-payment-existing").checked = false;
+  warn("", $("bill-payment-error"));
+  paymentDialog.showModal();
+}
+
+function saveBillPayment(bill, paymentDate, logExpense) {
+  const month = bill.dueDate.slice(0, 7);
+  const current = records.bills.find((entry) => entry.id === bill.id);
+  if (!current || !current.date || current.date.slice(0, 7) > month) {
+    warn("This bill changed. Close this window and try again.", $("bill-payment-error"));
+    return false;
+  }
+  const paidMonths = new Set(paidMonthsFor(current));
+  const transactions = [...records.transactions];
+  if (paymentDate) {
+    if (paidMonths.has(month)) return true;
+    paidMonths.add(month);
+    if (logExpense && !transactions.some((entry) => billPaymentMatch(entry, bill))) {
+      transactions.push({
+        id: crypto.randomUUID(), description: current.description, date: paymentDate, type: "expense",
+        amount: current.amount, billId: current.id, billMonth: month,
+      });
+    }
+  } else {
+    const linked = transactions.findIndex((entry) => billPaymentMatch(entry, bill));
+    if (linked >= 0) {
+      if (!window.confirm("Mark this bill unpaid and remove its linked Budget expense?")) return false;
+      transactions.splice(linked, 1);
+    }
+    paidMonths.delete(month);
+  }
+  const bills = records.bills.map((entry) => entry.id === current.id ? { ...entry, paidMonths: [...paidMonths] } : entry);
+  return save({ ...records, bills, transactions }, paymentDate ? $("bill-payment-error") : undefined);
+}
+
+function undoBillPayment(bill) {
+  if (saveBillPayment(bill)) (bill.misc ? miscBillButtons : billButtons)[ownerOfBill(bill)].focus();
+}
+
+function renderPayday(today) {
+  const payday = records.nextPayday;
+  $("payday-date").min = today;
+  $("payday-date").value = payday ?? "";
+  $("clear-payday").hidden = !payday;
+  const list = $("payday-list");
+  const message = $("payday-message");
+  if (!payday || payday < today) {
+    message.textContent = payday ? "Set your next payday to see the new total." : "Set a payday to see how much to set aside.";
+    list.replaceChildren();
+    return;
+  }
+
+  const currentMonth = today.slice(0, 7);
+  const due = records.bills.filter((bill) => bill.date && bill.date <= payday).flatMap((bill) => {
+    const occurrences = billOccurrences(bill, currentMonth);
+    const firstMonth = occurrences[0].dueDate.slice(0, 7);
+    const cursor = parseDate(firstMonth + "-01");
+    for (;;) {
+      cursor.setMonth(cursor.getMonth() + 1);
+      const month = String(cursor.getFullYear()).padStart(4, "0") + "-" + String(cursor.getMonth() + 1).padStart(2, "0");
+      if (cursor > parseDate(payday)) break;
+      occurrences.push(billForMonth(bill, month));
+    }
+    return occurrences;
+  }).filter((bill) => !bill.paid && bill.dueDate <= payday)
+    .sort((a, b) => a.dueDate.localeCompare(b.dueDate));
+
+  const total = due.reduce((sum, bill) => sum + bill.amount, 0);
+  message.textContent = money(total) + " to set aside through " + dateText(payday) + " · " + due.length + (due.length === 1 ? " unpaid bill" : " unpaid bills");
+  list.replaceChildren(...due.map((bill) => {
+    const row = element("li");
+    const copy = element("div");
+    copy.append(element("strong", bill.description),
+      element("small", billTiming(bill, today) + " · " + billOwners[ownerOfBill(bill)]));
+    row.append(copy, element("strong", money(bill.amount), "amount"));
+    return row;
+  }));
+}
+
+function validBackup(data) {
+  const isObject = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
+  const cents = (value) => Number.isSafeInteger(value) && value >= 0;
+  const record = (value) => isObject(value) && typeof value.id === "string" && typeof value.description === "string";
+  const rows = (values, check) => Array.isArray(values) && values.every((value) => record(value) && check(value)) &&
+    new Set(values.map((value) => value.id)).size === values.length;
+  if (!isObject(data) || !rows(data.transactions, (entry) =>
+    validDay(entry.date) && cents(entry.amount) && ["income", "expense"].includes(entry.type)) ||
+    !rows(data.goals, (goal) => cents(goal.target) && goal.target > 0 && cents(goal.saved)) ||
+    !rows(data.bills, (bill) =>
+      (bill.date === "" || (validDay(bill.date) && cents(bill.amount))) &&
+      (bill.graceDays == null || cents(bill.graceDays)) &&
+      (bill.paidMonths == null || (Array.isArray(bill.paidMonths) && bill.paidMonths.every(validMonth))))) return false;
+  return (data.nextPayday == null || validDay(data.nextPayday)) &&
+    (data.monthlyIncome == null || (isObject(data.monthlyIncome) &&
+      Object.entries(data.monthlyIncome).every(([month, value]) => validMonth(month) && cents(value))));
+}
+
+$("bill-payment-form").addEventListener("submit", (event) => {
+  event.preventDefault();
+  const date = $("bill-payment-date").value;
+  if (!validDay(date) || date > getToday()) {
+    warn("Enter a payment date no later than today.", $("bill-payment-error"));
+    return;
+  }
+  if (saveBillPayment(paymentBill, date, !$("bill-payment-existing").checked)) {
+    paymentDialog.close();
+    (paymentBill.misc ? miscBillButtons : billButtons)[ownerOfBill(paymentBill)].focus();
+  }
+});
+$("bill-payment-cancel").addEventListener("click", () => paymentDialog.close());
+$("payday-form").addEventListener("submit", (event) => {
+  event.preventDefault();
+  const nextPayday = $("payday-date").value;
+  if (validDay(nextPayday) && nextPayday >= getToday()) save({ ...records, nextPayday });
+});
+$("clear-payday").addEventListener("click", () => save({ ...records, nextPayday: null }));
+
+$("backup-export").addEventListener("click", () => {
+  const backup = { format: "money-and-savings", version: 1, data: records };
+  const url = URL.createObjectURL(new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" }));
+  const link = element("a");
+  link.href = url;
+  link.download = "money-and-savings-backup-" + getToday() + ".json";
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+});
+const backupFile = $("backup-file");
+$("backup-restore").addEventListener("click", () => backupFile.click());
+backupFile.addEventListener("change", async () => {
+  const file = backupFile.files[0];
+  backupFile.value = "";
+  if (!file) return;
+  const status = $("backup-status");
+  let backup;
+  try {
+    backup = JSON.parse(await file.text());
+  } catch {
+    warn("Could not read that backup file.", status);
+    return;
+  }
+  if (backup?.format !== "money-and-savings" || backup.version !== 1 || !validBackup(backup.data)) {
+    warn("Choose a valid Money & Savings backup file.", status);
+    return;
+  }
+  if (!window.confirm("Replace the bills, transactions, income, and savings goals saved in this browser with this backup?")) return;
+  if (save(backup.data, status, true)) warn("Backup restored.", status);
+});
+
 function makeRow(collection, record, detail, fromMisc = false) {
   const item = element("li");
   const line = element("div", undefined, "line");
@@ -547,17 +763,10 @@ function makeRow(collection, record, detail, fromMisc = false) {
   const edit = button(editLabel, () => openEditor(collection, record, undefined, fromMisc));
   edit.setAttribute("aria-label", editLabel + " " + record.description);
   if (collection === "bills" && !setup) {
-    const label = record.paid ? "Mark unpaid" : "Mark paid";
+    const label = record.paid ? "Mark unpaid" : "Mark paid & log expense";
     const toggle = button(label, () => {
-      const month = record.dueDate.slice(0, 7);
-      const bills = records.bills.map((bill) => {
-        if (bill.id !== record.id) return bill;
-        const paidMonths = new Set(paidMonthsFor(bill));
-        if (record.paid) paidMonths.delete(month);
-        else paidMonths.add(month);
-        return { ...bill, paidMonths: [...paidMonths] };
-      });
-      if (save({ ...records, bills })) (record.misc ? miscBillButtons : billButtons)[ownerOfBill(record)].focus();
+      if (record.paid) undoBillPayment(record);
+      else openBillPayment(record);
     }, "secondary");
     toggle.setAttribute("aria-label", label + " " + record.description + " due " + dateText(record.dueDate));
     actions.append(toggle);
@@ -632,7 +841,6 @@ function renderCashFlow(selected, transactions) {
 
 function render() {
   const selected = monthInput.value;
-  miscMonth.value = selected;
   const transactions = records.transactions.filter((entry) => entry.date.slice(0, 7) === selected)
     .sort((a, b) => byDate(b, a));
   const loggedIncome = transactions.reduce((sum, entry) => sum + (entry.type === "income" ? entry.amount : 0), 0);
@@ -644,20 +852,19 @@ function render() {
     dateText(entry.date) + " · " + (entry.type === "income" ? "Income " : "Expense ") + money(entry.amount));
 
   const today = getToday();
-  const billMonth = today.slice(0, 7);
-  $("bills-month").textContent = monthFormat.format(parseDate(billMonth + "-01"));
-  const bills = records.bills.filter((bill) => bill.date)
-    .flatMap((bill) => billOccurrences(bill, billMonth))
+  const selectedMonthLabel = monthFormat.format(parseDate(selected + "-01"));
+  $("bills-month").textContent = selectedMonthLabel;
+  $("home-month").textContent = selectedMonthLabel;
+  const monthlyBills = records.bills.filter((bill) => bill.date && bill.date.slice(0, 7) <= selected);
+  const bills = monthlyBills.flatMap((bill) => billOccurrences(bill, selected))
     .sort((a, b) => Number(a.paid) - Number(b.paid) || a.dueDate.localeCompare(b.dueDate));
   const starterBills = records.bills.filter((bill) => !bill.date);
   $("starter-bills-note").hidden = !starterBills.length;
-  const miscBills = records.bills.filter((bill) => bill.misc && bill.date && bill.date.slice(0, 7) <= selected)
-    .flatMap((bill) => billOccurrences(bill, selected))
-    .sort((a, b) => Number(a.paid) - Number(b.paid) || a.dueDate.localeCompare(b.dueDate));
+  renderPayday(today);
   for (const owner of Object.keys(billOwners)) {
     const ownerBills = [...bills, ...starterBills].filter((bill) => !bill.misc && ownerOfBill(bill) === owner);
     const miscRows = [
-      ...miscBills.filter((bill) => ownerOfBill(bill) === owner).map((bill) =>
+      ...bills.filter((bill) => bill.misc && ownerOfBill(bill) === owner).map((bill) =>
         makeRow("bills", bill, money(bill.amount) + " · " + billTiming(bill, today), true)),
       ...transactions.filter((entry) => entry.miscOwner === owner).map((entry) =>
         makeRow("transactions", entry, "Expense · " + money(entry.amount) + " · " + dateText(entry.date), true))
@@ -671,9 +878,6 @@ function render() {
   }
   renderRows("goals", records.goals, savedText);
 
-  const selectedMonthLabel = monthFormat.format(parseDate(selected + "-01"));
-  $("home-month").textContent = selectedMonthLabel;
-  const monthlyBills = records.bills.filter((bill) => bill.date && bill.date.slice(0, 7) <= selected);
   const billTotal = monthlyBills.reduce((total, bill) => total + bill.amount, 0);
   const unpaidBillTotal = monthlyBills
     .filter((bill) => !paidMonthsFor(bill).includes(selected))
@@ -746,7 +950,7 @@ function openEditor(collection, record, owner, fromMisc = false) {
   if (fields.date) {
     const today = getToday();
     const selected = monthInput.value;
-    fields.date.value = record?.date ?? ((collection === "transactions" || fromMisc) && selected !== today.slice(0, 7) ? selected + "-01" : today);
+    fields.date.value = record?.date ?? (selected !== today.slice(0, 7) ? selected + "-01" : today);
   }
   if (record && fields.type) fields.type.value = record.type;
   if (record?.amount != null && fields.amount) fields.amount.value = record.amount / 100;
@@ -812,10 +1016,10 @@ $("income-form").addEventListener("submit", (event) => {
 });
 $("income-clear").addEventListener("click", () => saveMonthlyIncome(null));
 $("income-cancel").addEventListener("click", () => incomeEditor.close());
-[monthInput, miscMonth].forEach((input) => input.addEventListener("change", () => {
-  monthInput.value = /^[0-9]{4}-(0[1-9]|1[0-2])$/.test(input.value) ? input.value : getToday().slice(0, 7);
+monthInput.addEventListener("change", () => {
+  if (!validMonth(monthInput.value)) monthInput.value = getToday().slice(0, 7);
   render();
-}));
+});
 $("cancel").addEventListener("click", () => editor.close());
 form.addEventListener("input", () => form.elements.description.setCustomValidity(""));
 
@@ -840,6 +1044,10 @@ form.addEventListener("submit", (event) => {
     if (collection === "transactions") {
       update.type = miscOwner ? "expense" : values.get("type");
       if (miscOwner) update.miscOwner = miscOwner;
+      if (record?.billId) {
+        update.billId = record.billId;
+        update.billMonth = record.billMonth;
+      }
     } else {
       if (miscBill) update.misc = true;
       update.owner = values.get("billOwner");
@@ -856,7 +1064,7 @@ form.addEventListener("submit", (event) => {
     ? records[collection].map((item) => item.id === record.id ? update : item)
     : [...records[collection], update];
   if (save({ ...records, [collection]: items }, $("editor-error"))) {
-    if (collection === "transactions" || (!record && fromMisc)) {
+    if (collection !== "goals" && (!record || collection === "transactions")) {
       monthInput.value = update.date.slice(0, 7);
       render();
     }
