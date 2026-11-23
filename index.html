@@ -97,6 +97,11 @@
   .overview-totals dd { margin: .35rem 0 0; font-weight: 760; font-size: clamp(.92rem, 2vw, 1.45rem); overflow-wrap: anywhere; }
   .overview-totals .negative { color: #ff9eaa; }
   .entry-panel { min-width: 0; }
+  .household-bills { display: grid; gap: 1rem; align-items: start; }
+  #starter-bills-note { margin: 0 0 .9rem; }
+  @media (min-width: 1060px) {
+    .household-bills { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
   .panel-heading { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: .4rem .75rem; }
   .panel-heading a { color: var(--accent); font-size: .88rem; font-weight: 700; text-underline-offset: .16em; }
   .overview-list { margin: .5rem 0 0; padding: 0; list-style: none; }
@@ -208,12 +213,25 @@
   </section>
 
   <section id="bills-panel" aria-labelledby="bills-title" hidden>
-    <div class="heading"><h1 id="bills-title" tabindex="-1">Bills</h1><button type="button" class="primary" data-add="bills">Add bill</button></div>
-    <div class="entry-panel">
-      <h2>Bill list</h2>
-      <p class="note" id="starter-bills-note" hidden>Set up any starter bill with your amount and due date, or remove it from the list.</p>
-      <p class="note" id="bills-empty">Add a bill to track its due date and payment status.</p>
-      <ul class="list" id="bills-list"></ul>
+    <div class="heading"><h1 id="bills-title" tabindex="-1">Bills</h1></div>
+    <p class="note" id="starter-bills-note" hidden>Set up any starter bill with your amount and due date, or remove it from the list.</p>
+    <div class="household-bills">
+      <section class="entry-panel" aria-labelledby="husband-bills-title">
+        <div class="panel-heading">
+          <h2 id="husband-bills-title">Husband</h2>
+          <button type="button" class="primary" data-bill-owner="husband" aria-label="Add bill for husband">Add bill</button>
+        </div>
+        <p class="note" id="husband-bills-empty">No bills yet.</p>
+        <ul class="list" id="husband-bills-list"></ul>
+      </section>
+      <section class="entry-panel" aria-labelledby="wife-bills-title">
+        <div class="panel-heading">
+          <h2 id="wife-bills-title">Wife</h2>
+          <button type="button" class="primary" data-bill-owner="wife" aria-label="Add bill for wife">Add bill</button>
+        </div>
+        <p class="note" id="wife-bills-empty">No bills yet.</p>
+        <ul class="list" id="wife-bills-list"></ul>
+      </section>
     </div>
     <p class="note">To include a paid bill in your budget, add it as an expense under Budget.</p>
   </section>
@@ -258,6 +276,9 @@
   <label>Date <input name="date" type="date" required></label>
 </template>
 <template id="bills-fields">
+  <label>Bill belongs to
+    <select name="billOwner"><option value="husband">Husband</option><option value="wife">Wife</option></select>
+  </label>
   <label>Amount ($) <input name="amount" type="number" inputmode="decimal" min=".01" max="99999999.99" step=".01" required></label>
   <label>Due date <input name="date" type="date" required></label>
 </template>
@@ -273,6 +294,9 @@
 const $ = (id) => document.getElementById(id);
 const collections = { transactions: "transaction", bills: "bill", goals: "savings goal" };
 const addButtons = Object.fromEntries([...document.querySelectorAll("[data-add]")].map((button) => [button.dataset.add, button]));
+const billButtons = Object.fromEntries([...document.querySelectorAll("[data-bill-owner]")].map((button) => [button.dataset.billOwner, button]));
+const billOwners = { husband: "Husband", wife: "Wife" };
+const ownerOfBill = (bill) => bill.owner === "wife" ? "wife" : "husband";
 const quickTransaction = $("quick-transaction");
 const navLinks = [...document.querySelectorAll(".nav a")];
 const tabs = navLinks.map((link) => link.hash.slice(1));
@@ -300,15 +324,20 @@ try {
 } catch {
   storageReady = false;
   warn("Saved entries could not be loaded. Check your browser’s storage settings or reload the page.");
-  [quickTransaction, ...Object.values(addButtons)].forEach((button) => { button.disabled = true; });
+  [quickTransaction, ...Object.values(addButtons), ...Object.values(billButtons)].forEach((button) => { button.disabled = true; });
 }
-if (storageReady && !records.starterBillsAdded) {
-  const existingNames = new Set(records.bills.map((bill) => bill.description.trim().toLowerCase()));
-  if (existingNames.has("rent") || existingNames.has("mortgage")) existingNames.add("rent or mortgage");
-  const starters = starterBillNames
-    .filter((name) => !existingNames.has(name.toLowerCase()))
-    .map((name) => ({ id: "starter-" + name.toLowerCase(), description: name, amount: null, date: "", paid: false }));
-  records = { ...records, bills: [...records.bills, ...starters], starterBillsAdded: true };
+if (storageReady) {
+  for (const owner of Object.keys(billOwners)) {
+    const flag = owner === "husband" ? "starterBillsAdded" : "wifeStarterBillsAdded";
+    if (records[flag]) continue;
+    const existingNames = new Set(records.bills.filter((bill) => ownerOfBill(bill) === owner)
+      .map((bill) => bill.description.trim().toLowerCase()));
+    if (existingNames.has("rent") || existingNames.has("mortgage")) existingNames.add("rent or mortgage");
+    const starters = starterBillNames
+      .filter((name) => !existingNames.has(name.toLowerCase()))
+      .map((name) => ({ id: "starter-" + owner + "-" + name.toLowerCase(), owner, description: name, amount: null, date: "", paid: false }));
+    records = { ...records, bills: [...records.bills, ...starters], [flag]: true };
+  }
 }
 monthInput.value = getToday().slice(0, 7);
 
@@ -370,7 +399,7 @@ function makeRow(collection, record, detail) {
     const label = record.paid ? "Mark unpaid" : "Mark paid";
     const toggle = button(label, () => {
       const bills = records.bills.map((bill) => bill.id === record.id ? { ...bill, paid: !bill.paid } : bill);
-      if (save({ ...records, bills })) addButtons.bills.focus();
+      if (save({ ...records, bills })) billButtons[ownerOfBill(record)].focus();
     }, "secondary");
     toggle.setAttribute("aria-label", label + " " + record.description);
     actions.append(toggle);
@@ -378,7 +407,7 @@ function makeRow(collection, record, detail) {
   actions.append(edit);
   if (collection === "bills") {
     const remove = button("Remove", () => {
-      if (removeRecord(collection, record)) addButtons.bills.focus();
+      if (removeRecord(collection, record)) billButtons[ownerOfBill(record)].focus();
     });
     remove.setAttribute("aria-label", "Remove " + record.description);
     actions.append(remove);
@@ -394,9 +423,9 @@ function makeRow(collection, record, detail) {
   return item;
 }
 
-function renderRows(collection, items, description) {
-  $(collection + "-empty").hidden = items.length > 0;
-  $(collection + "-list").replaceChildren(...items.map((item) => makeRow(collection, item, description(item))));
+function renderRows(collection, items, description, list = collection) {
+  $(list + "-empty").hidden = items.length > 0;
+  $(list + "-list").replaceChildren(...items.map((item) => makeRow(collection, item, description(item))));
 }
 
 function renderOverviewList(name, items, details, amount) {
@@ -460,8 +489,12 @@ function render() {
   $("starter-bills-note").hidden = !starterBills.length;
   const today = getToday();
   const due = (bill) => bill.paid ? "Paid" : bill.date < today ? "Overdue" : "Due";
-  renderRows("bills", [...bills, ...starterBills], (bill) =>
-    bill.date ? money(bill.amount) + " · " + due(bill) + " · " + dateText(bill.date) : "Amount and due date needed");
+  for (const owner of Object.keys(billOwners)) {
+    const ownerBills = [...bills, ...starterBills].filter((bill) => ownerOfBill(bill) === owner);
+    renderRows("bills", ownerBills, (bill) =>
+      bill.date ? money(bill.amount) + " · " + due(bill) + " · " + dateText(bill.date) : "Amount and due date needed",
+      owner + "-bills");
+  }
   renderRows("goals", records.goals, savedText);
 
   $("home-month").textContent = monthFormat.format(parseDate(selected + "-01"));
@@ -471,7 +504,7 @@ function render() {
   $("home-income").textContent = money(income);
   $("home-spending").textContent = money(spending);
   renderOverviewList("upcoming", bills.filter((bill) => !bill.paid).slice(0, 5),
-    (bill) => due(bill) + " · " + dateText(bill.date), (bill) => money(bill.amount));
+    (bill) => due(bill) + " · " + dateText(bill.date) + " · " + billOwners[ownerOfBill(bill)], (bill) => money(bill.amount));
   renderOverviewList("recent", transactions.slice(0, 4), (entry) => dateText(entry.date),
     (entry) => (entry.type === "income" ? "+" : "−") + money(entry.amount));
   renderCashFlow(selected, transactions);
@@ -499,14 +532,16 @@ function showTab(moveFocus) {
   }
 }
 
-function openEditor(collection, record) {
-  editState = { collection, record };
+function openEditor(collection, record, owner) {
+  if (collection === "bills" && record) owner = ownerOfBill(record);
+  editState = { collection, record, owner };
   const setup = collection === "bills" && record && !record.date;
   $("editor-title").textContent = (setup ? "Set up " : record ? "Edit " : "Add ") + collections[collection];
   $("fields").replaceChildren($("description-field").content.cloneNode(true), $(collection + "-fields").content.cloneNode(true));
   $("delete-record").hidden = !record;
   warn("", $("editor-error"));
   const fields = form.elements;
+  if (collection === "bills") fields.billOwner.value = owner;
   if (record) fields.description.value = record.description;
   if (fields.date) {
     const today = getToday();
@@ -522,13 +557,18 @@ function openEditor(collection, record) {
   editor.showModal();
 }
 
-function finishEdit(collection) {
+function finishEdit(collection, owner) {
   editor.close();
+  if (collection === "bills") {
+    billButtons[owner].focus();
+    return;
+  }
   const control = collection === "transactions" && !$("home-panel").hidden ? quickTransaction : addButtons[collection];
   control.focus();
 }
 
 Object.entries(addButtons).forEach(([collection, control]) => control.addEventListener("click", () => openEditor(collection)));
+Object.entries(billButtons).forEach(([owner, control]) => control.addEventListener("click", () => openEditor("bills", undefined, owner)));
 quickTransaction.addEventListener("click", () => openEditor("transactions"));
 window.addEventListener("hashchange", () => showTab(true));
 monthInput.addEventListener("change", () => {
@@ -557,7 +597,10 @@ form.addEventListener("submit", (event) => {
     update.amount = asCents("amount");
     update.date = values.get("date");
     if (collection === "transactions") update.type = values.get("type");
-    else update.paid = record?.paid ?? false;
+    else {
+      update.owner = values.get("billOwner");
+      update.paid = record?.paid ?? false;
+    }
   }
   const items = record
     ? records[collection].map((item) => item.id === record.id ? update : item)
@@ -567,7 +610,7 @@ form.addEventListener("submit", (event) => {
       monthInput.value = update.date.slice(0, 7);
       render();
     }
-    finishEdit(collection);
+    finishEdit(collection, update.owner);
   }
 });
 
@@ -578,8 +621,8 @@ function removeRecord(collection, record, errorTarget) {
 }
 
 $("delete-record").addEventListener("click", () => {
-  const { collection, record } = editState;
-  if (record && removeRecord(collection, record, $("editor-error"))) finishEdit(collection);
+  const { collection, record, owner } = editState;
+  if (record && removeRecord(collection, record, $("editor-error"))) finishEdit(collection, owner);
 });
 
 render();
