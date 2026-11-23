@@ -127,8 +127,7 @@
     .nav .shell { width: auto; grid-template-columns: minmax(0, 1fr); gap: .35rem; }
     .nav a { flex-direction: row; justify-content: start; gap: .75rem; min-height: 2.85rem; padding: .6rem .78rem; color: #ffedf5; }
     .nav a:hover { background: #291622; }
-    .nav a[aria-current="page"] { background: #3a172f; }
-    .nav a[aria-current="page"] .icon { color: #ff85d0; }
+    .nav a[aria-current="page"] { background: var(--accent); color: var(--on-accent); }
     .nav .icon { width: 1.35rem; text-align: center; }
     main.shell { grid-column: 2; grid-row: 1 / 3; width: min(100%, 96rem); padding: clamp(1.4rem, 3vw, 3rem); }
     .dashboard { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(15rem, 1.7fr); align-items: stretch; grid-template-areas: "totals totals bills" "cash cash bills" "savings savings recent"; }
@@ -212,6 +211,7 @@
     <div class="heading"><h1 id="bills-title" tabindex="-1">Bills</h1><button type="button" class="primary" data-add="bills">Add bill</button></div>
     <div class="entry-panel">
       <h2>Bill list</h2>
+      <p class="note" id="starter-bills-note" hidden>Set up any starter bill with your amount and due date, or remove it from the list.</p>
       <p class="note" id="bills-empty">Add a bill to track its due date and payment status.</p>
       <ul class="list" id="bills-list"></ul>
     </div>
@@ -271,11 +271,11 @@
 "use strict";
 
 const $ = (id) => document.getElementById(id);
-const tabs = ["home", "budget", "bills", "savings"];
 const collections = { transactions: "transaction", bills: "bill", goals: "savings goal" };
 const addButtons = Object.fromEntries([...document.querySelectorAll("[data-add]")].map((button) => [button.dataset.add, button]));
 const quickTransaction = $("quick-transaction");
 const navLinks = [...document.querySelectorAll(".nav a")];
+const tabs = navLinks.map((link) => link.hash.slice(1));
 const editor = $("editor");
 const form = $("editor-form");
 const storageKey = "money-and-savings-layout-a-v1";
@@ -287,8 +287,8 @@ const getToday = () => {
   return [now.getFullYear(), now.getMonth() + 1, now.getDate()].map((part) => String(part).padStart(2, "0")).join("-");
 };
 const monthInput = $("month-input");
-const initialData = { transactions: [], bills: [], goals: [] };
-let records = initialData;
+const starterBillNames = ["Rent or mortgage", "Electricity", "Water", "Internet", "Cell phone", "Car payment", "Car insurance", "Subscriptions"];
+let records = { transactions: [], bills: [], goals: [] };
 let editState;
 let storageReady = true;
 try {
@@ -301,6 +301,14 @@ try {
   storageReady = false;
   warn("Saved entries could not be loaded. Check your browser’s storage settings or reload the page.");
   [quickTransaction, ...Object.values(addButtons)].forEach((button) => { button.disabled = true; });
+}
+if (storageReady && !records.starterBillsAdded) {
+  const existingNames = new Set(records.bills.map((bill) => bill.description.trim().toLowerCase()));
+  if (existingNames.has("rent") || existingNames.has("mortgage")) existingNames.add("rent or mortgage");
+  const starters = starterBillNames
+    .filter((name) => !existingNames.has(name.toLowerCase()))
+    .map((name) => ({ id: "starter-" + name.toLowerCase(), description: name, amount: null, date: "", paid: false }));
+  records = { ...records, bills: [...records.bills, ...starters], starterBillsAdded: true };
 }
 monthInput.value = getToday().slice(0, 7);
 
@@ -354,9 +362,11 @@ function makeRow(collection, record, detail) {
   const labels = element("div", undefined, "details");
   labels.append(element("strong", record.description), element("span", detail));
   const actions = element("div", undefined, "row-actions");
-  const edit = button("Edit", () => openEditor(collection, record));
-  edit.setAttribute("aria-label", "Edit " + record.description);
-  if (collection === "bills") {
+  const setup = collection === "bills" && !record.date;
+  const editLabel = setup ? "Set up" : "Edit";
+  const edit = button(editLabel, () => openEditor(collection, record));
+  edit.setAttribute("aria-label", editLabel + " " + record.description);
+  if (collection === "bills" && !setup) {
     const label = record.paid ? "Mark unpaid" : "Mark paid";
     const toggle = button(label, () => {
       const bills = records.bills.map((bill) => bill.id === record.id ? { ...bill, paid: !bill.paid } : bill);
@@ -366,6 +376,13 @@ function makeRow(collection, record, detail) {
     actions.append(toggle);
   }
   actions.append(edit);
+  if (collection === "bills") {
+    const remove = button("Remove", () => {
+      if (removeRecord(collection, record)) addButtons.bills.focus();
+    });
+    remove.setAttribute("aria-label", "Remove " + record.description);
+    actions.append(remove);
+  }
   line.append(labels, actions);
   item.append(line);
   if (collection === "goals") {
@@ -437,10 +454,14 @@ function render() {
   renderRows("transactions", transactions, (entry) =>
     dateText(entry.date) + " · " + (entry.type === "income" ? "Income " : "Expense ") + money(entry.amount));
 
-  const bills = [...records.bills].sort((a, b) => Number(a.paid) - Number(b.paid) || byDate(a, b));
+  const bills = records.bills.filter((bill) => bill.date)
+    .sort((a, b) => Number(a.paid) - Number(b.paid) || byDate(a, b));
+  const starterBills = records.bills.filter((bill) => !bill.date);
+  $("starter-bills-note").hidden = !starterBills.length;
   const today = getToday();
   const due = (bill) => bill.paid ? "Paid" : bill.date < today ? "Overdue" : "Due";
-  renderRows("bills", bills, (bill) => money(bill.amount) + " · " + due(bill) + " · " + dateText(bill.date));
+  renderRows("bills", [...bills, ...starterBills], (bill) =>
+    bill.date ? money(bill.amount) + " · " + due(bill) + " · " + dateText(bill.date) : "Amount and due date needed");
   renderRows("goals", records.goals, savedText);
 
   $("home-month").textContent = monthFormat.format(parseDate(selected + "-01"));
@@ -480,7 +501,8 @@ function showTab(moveFocus) {
 
 function openEditor(collection, record) {
   editState = { collection, record };
-  $("editor-title").textContent = (record ? "Edit " : "Add ") + collections[collection];
+  const setup = collection === "bills" && record && !record.date;
+  $("editor-title").textContent = (setup ? "Set up " : record ? "Edit " : "Add ") + collections[collection];
   $("fields").replaceChildren($("description-field").content.cloneNode(true), $(collection + "-fields").content.cloneNode(true));
   $("delete-record").hidden = !record;
   warn("", $("editor-error"));
@@ -492,7 +514,7 @@ function openEditor(collection, record) {
     fields.date.value = record?.date ?? (collection === "transactions" && selected !== today.slice(0, 7) ? selected + "-01" : today);
   }
   if (record && fields.type) fields.type.value = record.type;
-  if (record && fields.amount) fields.amount.value = record.amount / 100;
+  if (record?.amount != null && fields.amount) fields.amount.value = record.amount / 100;
   if (record && fields.target) {
     fields.target.value = record.target / 100;
     fields.saved.value = record.saved / 100;
@@ -549,11 +571,15 @@ form.addEventListener("submit", (event) => {
   }
 });
 
+function removeRecord(collection, record, errorTarget) {
+  if (!window.confirm("Remove " + record.description + "?")) return false;
+  const items = records[collection].filter((item) => item.id !== record.id);
+  return save({ ...records, [collection]: items }, errorTarget);
+}
+
 $("delete-record").addEventListener("click", () => {
   const { collection, record } = editState;
-  if (!record || !window.confirm("Delete " + record.description + "?")) return;
-  const items = records[collection].filter((item) => item.id !== record.id);
-  if (save({ ...records, [collection]: items }, $("editor-error"))) finishEdit(collection);
+  if (record && removeRecord(collection, record, $("editor-error"))) finishEdit(collection);
 });
 
 render();
