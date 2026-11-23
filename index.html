@@ -1,12 +1,435 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Money &amp; Savings</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f5f8f4">
+<title>Money &amp; Savings</title>
+<style>
+  :root {
+    color-scheme: light;
+    font-family: system-ui, -apple-system, sans-serif;
+    color: #153124;
+    background: #f5f8f4;
+    --green: #105534;
+    --ink: #153124;
+    --muted: #466252;
+    --line: #cfdfd3;
+    --mint: #d9f7e2;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body { margin: 0; padding-bottom: calc(6.75rem + env(safe-area-inset-bottom)); }
+  .shell { width: min(100% - 2rem, 44rem); margin-inline: auto; }
+  .masthead { background: #fff; border-bottom: 1px solid var(--line); }
+  .masthead .shell { min-height: 4.25rem; display: flex; align-items: center; gap: .7rem; }
+  .brand-mark, .card-mark { display: grid; place-items: center; flex: none; border-radius: .7rem; font-weight: 750; }
+  .brand-mark { width: 2.1rem; height: 2.1rem; background: var(--green); color: #fff; }
+  .masthead strong { font-size: 1.18rem; }
+  main { padding-top: 1.6rem; }
+  h1, h2, p { margin: 0; }
+  h1 { font-size: clamp(1.8rem, 6vw, 2.5rem); letter-spacing: -.04em; }
+  h2 { font-size: 1.15rem; }
+  .heading { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: .65rem; margin-bottom: 1rem; }
+  .sub, .muted { color: var(--muted); }
+  .sub { margin-top: .25rem; }
+  .summary, .card, .entry-panel { border-radius: 1rem; padding: 1.15rem; border: 1px solid var(--line); }
+  .summary { background: var(--mint); margin-bottom: .85rem; }
+  .summary strong { font-size: clamp(2rem, 9vw, 3.25rem); display: block; letter-spacing: -.045em; overflow-wrap: anywhere; }
+  .home-cards { display: grid; gap: .75rem; }
+  .card { width: 100%; text-align: left; background: white; color: var(--ink); display: flex; align-items: flex-start; gap: .85rem; }
+  .card-content { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+  .card strong { display: block; font-size: 1.12rem; margin-bottom: .2rem; }
+  .card small { display: block; margin-top: .3rem; font-size: .92rem; color: var(--muted); }
+  .card-mark { background: #e8f5ec; color: var(--green); width: 2.4rem; height: 2.4rem; }
+  .card:hover, .nav a:hover { background: #ebf6ee; }
+  .note { color: var(--muted); margin-top: 1rem; font-size: .93rem; }
+  .nav { position: fixed; z-index: 2; inset: auto 0 0; border-top: 1px solid var(--line); background: white; padding: .45rem .5rem calc(.45rem + env(safe-area-inset-bottom)); }
+  .nav .shell { width: min(100%, 44rem); display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .25rem; }
+  .nav a { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 3.65rem; gap: .12rem; padding: .25rem; color: var(--green); text-decoration: none; border-radius: .65rem; font-weight: 700; font-size: .91rem; }
+  .nav a[aria-current="page"] { background: var(--green); color: #fff; }
+  .icon { font-size: 1.35rem; line-height: 1; font-family: system-ui, sans-serif; }
+  button, input, select { font: inherit; }
+  button { cursor: pointer; }
+  .primary, .secondary, .quiet { min-height: 44px; border: 1px solid transparent; border-radius: .55rem; padding: .45rem .75rem; font-weight: 680; }
+  .primary { background: var(--green); color: white; }
+  .primary:hover { background: #0a4227; }
+  .secondary { background: #e8f5ec; color: var(--green); border-color: var(--line); }
+  .quiet { background: white; color: var(--green); }
+  .quiet:hover { background: #edf6ef; }
+  a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid #26835c; outline-offset: 3px; }
+  .entry-panel { background: #fff; }
+  #month-input { width: 100%; }
+  .totals { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; margin: .85rem 0; }
+  .totals div { background: #edf6ef; border-radius: .65rem; padding: .75rem; overflow-wrap: anywhere; }
+  .totals dt { color: var(--muted); }
+  .totals dd { margin: .2rem 0 0; font-weight: 750; font-size: 1.2rem; }
+  .list { margin: .5rem 0 0; padding: 0; list-style: none; }
+  .list li { padding: .75rem 0; border-top: 1px solid var(--line); }
+  .list li:first-child { border-top: 0; }
+  .list li:last-child { padding-bottom: 0; }
+  .line { display: flex; justify-content: space-between; align-items: center; gap: .5rem; flex-wrap: wrap; }
+  .details { flex: 1 1 10rem; min-width: 0; overflow-wrap: anywhere; }
+  .details span { display: block; margin-top: .15rem; color: var(--muted); }
+  .row-actions { display: flex; flex-wrap: wrap; gap: .3rem; }
+  progress { display: block; width: 100%; height: .75rem; margin: .55rem 0 .1rem; accent-color: var(--green); }
+  dialog { width: min(100% - 2rem, 29rem); max-height: 90vh; padding: 1.25rem; border: 1px solid var(--line); border-radius: 1rem; color: var(--ink); }
+  dialog::backdrop { background: rgb(10 35 21 / .62); }
+  #fields { display: grid; gap: .85rem; margin-block: 1rem; }
+  label { display: grid; gap: .3rem; font-weight: 650; }
+  input, select { min-width: 0; min-height: 44px; padding: .45rem .55rem; color: var(--ink); background: #fff; border: 1px solid #93ac9c; border-radius: .45rem; }
+  .dialog-actions { display: flex; gap: .35rem; justify-content: end; flex-wrap: wrap; }
+  .delete { color: #92251f; margin-right: auto; }
+  .error { color: #852620; padding: .65rem; background: #fff0ef; border-radius: .4rem; margin-bottom: .75rem; }
+  @media (min-width: 640px) {
+    main { padding-top: 2.25rem; }
+    .home-cards { grid-template-columns: 1fr 1fr; }
+  }
+</style>
 </head>
 <body>
-  <h1>Money &amp; Savings</h1>
-  <p>My monthly budget and savings goals.</p>
+<header class="masthead">
+  <div class="shell"><span class="brand-mark" aria-hidden="true">$</span><strong>Money &amp; Savings</strong></div>
+</header>
+<main class="shell">
+  <p id="storage-error" class="error" role="alert" hidden></p>
+
+  <section id="home-panel" aria-labelledby="home-title">
+    <div class="heading"><div><h1 id="home-title" tabindex="-1">This month</h1><p id="home-month" class="sub"></p></div></div>
+    <div class="summary">
+      <strong id="home-total">$0.00 left</strong>
+      <p id="home-summary">Income minus spending</p>
+    </div>
+    <div class="home-cards">
+      <button type="button" class="card" data-open="bills">
+        <span class="card-mark" aria-hidden="true">▦</span>
+        <span class="card-content"><strong>Upcoming bill</strong><span id="home-bill">No unpaid bills</span></span>
+      </button>
+      <button type="button" class="card" data-open="savings">
+        <span class="card-mark" aria-hidden="true">◇</span>
+        <span class="card-content"><strong>Savings goal</strong><span id="home-goal">Set a savings goal</span>
+          <progress id="home-progress" aria-label="Savings goal progress" hidden></progress>
+          <small id="home-progress-text" hidden></small>
+        </span>
+      </button>
+    </div>
+  </section>
+
+  <section id="budget-panel" aria-labelledby="budget-title" hidden>
+    <div class="heading"><h1 id="budget-title" tabindex="-1">Budget</h1><button type="button" class="primary" data-add="transactions">Add transaction</button></div>
+    <div class="entry-panel">
+      <label>Budget month <input id="month-input" type="month"></label>
+      <dl class="totals">
+        <div><dt>Income</dt><dd id="budget-income">$0.00</dd></div>
+        <div><dt>Spending</dt><dd id="budget-spending">$0.00</dd></div>
+      </dl>
+      <h2>Transactions</h2>
+      <p class="note" id="transactions-empty">Add a paycheck or expense to start this month’s budget.</p>
+      <ul class="list" id="transactions-list"></ul>
+    </div>
+  </section>
+
+  <section id="bills-panel" aria-labelledby="bills-title" hidden>
+    <div class="heading"><h1 id="bills-title" tabindex="-1">Bills</h1><button type="button" class="primary" data-add="bills">Add bill</button></div>
+    <div class="entry-panel">
+      <h2>Bill list</h2>
+      <p class="note" id="bills-empty">Add a bill to track its due date and payment status.</p>
+      <ul class="list" id="bills-list"></ul>
+    </div>
+    <p class="note">To include a paid bill in your budget, add it as an expense under Budget.</p>
+  </section>
+
+  <section id="savings-panel" aria-labelledby="savings-title" hidden>
+    <div class="heading"><h1 id="savings-title" tabindex="-1">Savings</h1><button type="button" class="primary" data-add="goals">Add goal</button></div>
+    <div class="entry-panel">
+      <h2>Savings goals</h2>
+      <p class="note" id="goals-empty">Set a target for your emergency fund or another goal.</p>
+      <ul class="list" id="goals-list"></ul>
+    </div>
+  </section>
+
+  <p class="note">Entries are saved in this browser on this device.</p>
+</main>
+
+<nav class="nav" aria-label="Main navigation">
+  <div class="shell">
+    <a href="#home" aria-current="page"><span class="icon" aria-hidden="true">⌂</span>Home</a>
+    <a href="#budget"><span class="icon" aria-hidden="true">$</span>Budget</a>
+    <a href="#bills"><span class="icon" aria-hidden="true">▦</span>Bills</a>
+    <a href="#savings"><span class="icon" aria-hidden="true">◇</span>Savings</a>
+  </div>
+</nav>
+
+<dialog id="editor" aria-labelledby="editor-title">
+  <form id="editor-form">
+    <h2 id="editor-title"></h2>
+    <div id="fields"></div>
+    <p class="error" id="editor-error" role="alert" hidden></p>
+    <div class="dialog-actions">
+      <button type="button" class="quiet delete" id="delete-record" hidden>Delete</button>
+      <button type="button" class="secondary" id="cancel">Cancel</button>
+      <button type="submit" class="primary">Save</button>
+    </div>
+  </form>
+</dialog>
+
+<template id="transactions-fields">
+  <label>Type <select name="type"><option value="expense">Expense</option><option value="income">Income</option></select></label>
+  <label>Amount ($) <input name="amount" type="number" inputmode="decimal" min=".01" max="99999999.99" step=".01" required></label>
+  <label>Date <input name="date" type="date" required></label>
+</template>
+<template id="bills-fields">
+  <label>Amount ($) <input name="amount" type="number" inputmode="decimal" min=".01" max="99999999.99" step=".01" required></label>
+  <label>Due date <input name="date" type="date" required></label>
+</template>
+<template id="goals-fields">
+  <label>Target ($) <input name="target" type="number" inputmode="decimal" min=".01" max="99999999.99" step=".01" required></label>
+  <label>Saved so far ($) <input name="saved" type="number" inputmode="decimal" min="0" max="99999999.99" step=".01" required value="0"></label>
+</template>
+<template id="description-field"><label>Description <input name="description" maxlength="100" required></label></template>
+
+<script>
+"use strict";
+
+const $ = (id) => document.getElementById(id);
+const tabs = ["home", "budget", "bills", "savings"];
+const collections = { transactions: "transaction", bills: "bill", goals: "savings goal" };
+const addButtons = Object.fromEntries([...document.querySelectorAll("[data-add]")].map((button) => [button.dataset.add, button]));
+const navLinks = [...document.querySelectorAll(".nav a")];
+const editor = $("editor");
+const form = $("editor-form");
+const storageKey = "money-and-savings-layout-a-v1";
+const moneyFormat = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
+const monthFormat = new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric" });
+const dateFormat = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" });
+const getToday = () => {
+  const now = new Date();
+  return [now.getFullYear(), now.getMonth() + 1, now.getDate()].map((part) => String(part).padStart(2, "0")).join("-");
+};
+const monthInput = $("month-input");
+const initialData = { transactions: [], bills: [], goals: [] };
+let records = initialData;
+let editState;
+let storageReady = true;
+try {
+  const stored = JSON.parse(localStorage.getItem(storageKey));
+  if (stored) {
+    if (!Object.keys(collections).every((key) => Array.isArray(stored[key]))) throw new Error("Invalid records");
+    records = stored;
+  }
+} catch {
+  storageReady = false;
+  warn("Saved entries could not be loaded. Check your browser’s storage settings or reload the page.");
+  Object.values(addButtons).forEach((button) => { button.disabled = true; });
+}
+monthInput.value = getToday().slice(0, 7);
+
+function warn(message, target = $("storage-error")) {
+  target.textContent = message;
+  target.hidden = !message;
+}
+
+function save(next, errorTarget) {
+  if (!storageReady) return false;
+  try {
+    localStorage.setItem(storageKey, JSON.stringify(next));
+  } catch {
+    warn("Your change could not be saved on this device. Check your browser’s storage settings.", errorTarget);
+    return false;
+  }
+  records = next;
+  warn("");
+  render();
+  return true;
+}
+
+function element(tag, label, className) {
+  const item = document.createElement(tag);
+  if (label !== undefined) item.textContent = label;
+  if (className) item.className = className;
+  return item;
+}
+
+function button(label, action, className = "quiet") {
+  const item = element("button", label, className);
+  item.type = "button";
+  item.addEventListener("click", action);
+  return item;
+}
+
+function progress(bar, goal) {
+  bar.max = goal.target;
+  bar.value = Math.min(goal.saved, goal.target);
+}
+
+const money = (cents) => moneyFormat.format(cents / 100);
+const savedText = (goal) => money(goal.saved) + " of " + money(goal.target);
+const parseDate = (date) => new Date(date + "T12:00:00");
+const dateText = (date) => dateFormat.format(parseDate(date));
+const byDate = (a, b) => a.date.localeCompare(b.date);
+
+function makeRow(collection, record, detail) {
+  const item = element("li");
+  const line = element("div", undefined, "line");
+  const labels = element("div", undefined, "details");
+  labels.append(element("strong", record.description), element("span", detail));
+  const actions = element("div", undefined, "row-actions");
+  const edit = button("Edit", () => openEditor(collection, record));
+  edit.setAttribute("aria-label", "Edit " + record.description);
+  if (collection === "bills") {
+    const label = record.paid ? "Mark unpaid" : "Mark paid";
+    const toggle = button(label, () => {
+      const bills = records.bills.map((bill) => bill.id === record.id ? { ...bill, paid: !bill.paid } : bill);
+      if (save({ ...records, bills })) addButtons.bills.focus();
+    }, "secondary");
+    toggle.setAttribute("aria-label", label + " " + record.description);
+    actions.append(toggle);
+  }
+  actions.append(edit);
+  line.append(labels, actions);
+  item.append(line);
+  if (collection === "goals") {
+    const bar = element("progress");
+    bar.setAttribute("aria-label", "Progress for " + record.description);
+    progress(bar, record);
+    item.append(bar);
+  }
+  return item;
+}
+
+function renderRows(collection, items, description) {
+  $(collection + "-empty").hidden = items.length > 0;
+  $(collection + "-list").replaceChildren(...items.map((item) => makeRow(collection, item, description(item))));
+}
+
+function render() {
+  const selected = monthInput.value;
+  const transactions = records.transactions.filter((entry) => entry.date.slice(0, 7) === selected)
+    .sort((a, b) => byDate(b, a));
+  const income = transactions.reduce((sum, entry) => sum + (entry.type === "income" ? entry.amount : 0), 0);
+  const spending = transactions.reduce((sum, entry) => sum + (entry.type === "expense" ? entry.amount : 0), 0);
+  $("budget-income").textContent = money(income);
+  $("budget-spending").textContent = money(spending);
+  renderRows("transactions", transactions, (entry) =>
+    dateText(entry.date) + " · " + (entry.type === "income" ? "Income " : "Expense ") + money(entry.amount));
+
+  const bills = [...records.bills].sort((a, b) => Number(a.paid) - Number(b.paid) || byDate(a, b));
+  const today = getToday();
+  const due = (bill) => bill.paid ? "Paid" : bill.date < today ? "Overdue" : "Due";
+  renderRows("bills", bills, (bill) => money(bill.amount) + " · " + due(bill) + " · " + dateText(bill.date));
+  renderRows("goals", records.goals, savedText);
+
+  $("home-title").textContent = selected === today.slice(0, 7) ? "This month" : "Monthly overview";
+  $("home-month").textContent = monthFormat.format(parseDate(selected + "-01"));
+  const balance = income - spending;
+  $("home-total").textContent = balance < 0 ? money(-balance) + " over income" : money(balance) + " left";
+  const unpaid = bills.find((bill) => !bill.paid);
+  $("home-bill").textContent = unpaid ? unpaid.description + " · " + money(unpaid.amount) : "No unpaid bills";
+  const goal = records.goals[0];
+  $("home-goal").textContent = goal ? goal.description : "Set a savings goal";
+  $("home-progress").hidden = !goal;
+  $("home-progress-text").hidden = !goal;
+  if (goal) {
+    progress($("home-progress"), goal);
+    $("home-progress-text").textContent = savedText(goal);
+  }
+}
+
+function showTab(moveFocus) {
+  const requested = location.hash.slice(1);
+  const current = tabs.includes(requested) ? requested : "home";
+  tabs.forEach((tab, index) => {
+    $(tab + "-panel").hidden = current !== tab;
+    if (current === tab) navLinks[index].setAttribute("aria-current", "page");
+    else navLinks[index].removeAttribute("aria-current");
+  });
+  if (moveFocus) {
+    window.scrollTo(0, 0);
+    $(current + "-title").focus({ preventScroll: true });
+  }
+}
+
+function openEditor(collection, record) {
+  editState = { collection, record };
+  $("editor-title").textContent = (record ? "Edit " : "Add ") + collections[collection];
+  $("fields").replaceChildren($("description-field").content.cloneNode(true), $(collection + "-fields").content.cloneNode(true));
+  $("delete-record").hidden = !record;
+  warn("", $("editor-error"));
+  const fields = form.elements;
+  if (record) fields.description.value = record.description;
+  if (fields.date) {
+    const today = getToday();
+    const selected = monthInput.value;
+    fields.date.value = record?.date ?? (collection === "transactions" && selected !== today.slice(0, 7) ? selected + "-01" : today);
+  }
+  if (record && fields.type) fields.type.value = record.type;
+  if (record && fields.amount) fields.amount.value = record.amount / 100;
+  if (record && fields.target) {
+    fields.target.value = record.target / 100;
+    fields.saved.value = record.saved / 100;
+  }
+  editor.showModal();
+}
+
+function finishEdit(collection) {
+  editor.close();
+  addButtons[collection].focus();
+}
+
+Object.entries(addButtons).forEach(([collection, control]) => control.addEventListener("click", () => openEditor(collection)));
+document.querySelectorAll("[data-open]").forEach((control) => {
+  control.addEventListener("click", () => { location.hash = control.dataset.open; });
+});
+window.addEventListener("hashchange", () => showTab(true));
+monthInput.addEventListener("change", () => {
+  if (!/^[0-9]{4}-(0[1-9]|1[0-2])$/.test(monthInput.value)) monthInput.value = getToday().slice(0, 7);
+  render();
+});
+$("cancel").addEventListener("click", () => editor.close());
+form.addEventListener("input", () => form.elements.description.setCustomValidity(""));
+
+form.addEventListener("submit", (event) => {
+  event.preventDefault();
+  const values = new FormData(form);
+  const description = values.get("description").trim();
+  if (!description) {
+    form.elements.description.setCustomValidity("Enter a description.");
+    form.elements.description.reportValidity();
+    return;
+  }
+  const asCents = (field) => Math.round(Number(values.get(field)) * 100);
+  const { collection, record } = editState;
+  const update = { id: record?.id ?? crypto.randomUUID(), description };
+  if (collection === "goals") {
+    update.target = asCents("target");
+    update.saved = asCents("saved");
+  } else {
+    update.amount = asCents("amount");
+    update.date = values.get("date");
+    if (collection === "transactions") update.type = values.get("type");
+    else update.paid = record?.paid ?? false;
+  }
+  const items = record
+    ? records[collection].map((item) => item.id === record.id ? update : item)
+    : [...records[collection], update];
+  if (save({ ...records, [collection]: items }, $("editor-error"))) {
+    if (collection === "transactions") {
+      monthInput.value = update.date.slice(0, 7);
+      render();
+    }
+    finishEdit(collection);
+  }
+});
+
+$("delete-record").addEventListener("click", () => {
+  const { collection, record } = editState;
+  if (!record || !window.confirm("Delete " + record.description + "?")) return;
+  const items = records[collection].filter((item) => item.id !== record.id);
+  if (save({ ...records, [collection]: items }, $("editor-error"))) finishEdit(collection);
+});
+
+render();
+showTab(false);
+</script>
 </body>
 </html>
