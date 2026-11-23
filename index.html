@@ -95,10 +95,15 @@
   .overview-totals > div:first-child { background: var(--blush); }
   .overview-totals dt { font-size: .85rem; color: var(--muted); }
   .overview-totals dd { margin: .35rem 0 0; font-weight: 760; font-size: clamp(.92rem, 2vw, 1.45rem); overflow-wrap: anywhere; }
+  .income-card { position: relative; }
+  .income-card:focus-within, .income-card:hover { box-shadow: inset 0 0 0 1px var(--accent); }
+  .income-card button { padding: 0; border: 0; background: none; color: var(--accent); text-align: left; font: inherit; font-weight: 700; text-decoration: underline; text-underline-offset: .2em; }
+  .income-card button::after { content: ""; position: absolute; inset: 0; border-radius: .65rem; }
+  #income-form > label { margin: 1rem 0; }
   .overview-totals .negative { color: #ff9eaa; }
   .entry-panel { min-width: 0; }
   .household-bills { display: grid; gap: 1rem; align-items: start; }
-  #starter-bills-note { margin: 0 0 .9rem; }
+  .bill-note { margin: 0 0 .9rem; }
   @media (min-width: 1060px) {
     .household-bills { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   }
@@ -164,7 +169,7 @@
     <div class="dashboard">
       <dl class="overview-totals" aria-label="Monthly budget totals">
         <div><dt>Left this month</dt><dd id="home-total">$0.00</dd></div>
-        <div><dt>Income</dt><dd id="home-income">$0.00</dd></div>
+        <div class="income-card"><dt><button type="button" data-edit-income aria-haspopup="dialog" aria-label="Edit monthly income" aria-describedby="home-income">Income</button></dt><dd id="home-income">$0.00</dd></div>
         <div><dt>Spending</dt><dd id="home-spending">$0.00</dd></div>
       </dl>
 
@@ -175,7 +180,7 @@
       </section>
 
       <section class="entry-panel cash-flow" aria-labelledby="cash-title">
-        <h2 id="cash-title">Cash flow</h2>
+        <h2 id="cash-title">Cash flow from transactions</h2>
         <p class="note" id="cash-empty">Add a transaction to see your income and spending for the month.</p>
         <div id="cash-chart" hidden>
           <p class="chart-key"><span>Income</span><span>Spending</span></p>
@@ -203,7 +208,7 @@
     <div class="entry-panel">
       <label>Budget month <input id="month-input" type="month"></label>
       <dl class="totals">
-        <div><dt>Income</dt><dd id="budget-income">$0.00</dd></div>
+        <div class="income-card"><dt><button type="button" data-edit-income aria-haspopup="dialog" aria-label="Edit monthly income" aria-describedby="budget-income">Income</button></dt><dd id="budget-income">$0.00</dd></div>
         <div><dt>Spending</dt><dd id="budget-spending">$0.00</dd></div>
       </dl>
       <h2>Transactions</h2>
@@ -213,8 +218,9 @@
   </section>
 
   <section id="bills-panel" aria-labelledby="bills-title" hidden>
-    <div class="heading"><h1 id="bills-title" tabindex="-1">Bills</h1></div>
-    <p class="note" id="starter-bills-note" hidden>Set up any starter bill with your amount and due date, or remove it from the list.</p>
+    <div class="heading"><div><h1 id="bills-title" tabindex="-1">Bills</h1><p id="bills-month" class="sub"></p></div></div>
+    <p class="note bill-note">Bills repeat monthly. Paid status resets at the start of each month.</p>
+    <p class="note bill-note" id="starter-bills-note" hidden>Set up any starter bill with your amount and due date, or remove it from the list.</p>
     <div class="household-bills">
       <section class="entry-panel" aria-labelledby="husband-bills-title">
         <div class="panel-heading">
@@ -270,6 +276,23 @@
   </form>
 </dialog>
 
+<dialog id="income-editor" aria-labelledby="income-title">
+  <form id="income-form">
+    <h2 id="income-title">Monthly income</h2>
+    <p class="sub" id="income-month"></p>
+    <p class="note">This amount is the total income used in your budget for this month. Clear it to use the income transactions you logged.</p>
+    <label>Monthly income ($)
+      <input id="income-amount" type="number" inputmode="decimal" min="0" max="99999999.99" step=".01" required>
+    </label>
+    <p id="income-error" class="error" role="alert" hidden></p>
+    <div class="dialog-actions">
+      <button type="button" id="income-clear" class="quiet">Clear amount</button>
+      <button type="button" id="income-cancel" class="secondary">Cancel</button>
+      <button type="submit" class="primary">Save</button>
+    </div>
+  </form>
+</dialog>
+
 <template id="transactions-fields">
   <label>Type <select name="type"><option value="expense">Expense</option><option value="income">Income</option></select></label>
   <label>Amount ($) <input name="amount" type="number" inputmode="decimal" min=".01" max="99999999.99" step=".01" required></label>
@@ -280,7 +303,11 @@
     <select name="billOwner"><option value="husband">Husband</option><option value="wife">Wife</option></select>
   </label>
   <label>Amount ($) <input name="amount" type="number" inputmode="decimal" min=".01" max="99999999.99" step=".01" required></label>
-  <label>Due date <input name="date" type="date" required></label>
+  <label>First due date <input name="date" type="date" required></label>
+  <label>Grace period (calendar days)
+    <input name="graceDays" type="number" inputmode="numeric" min="0" step="1" placeholder="0" aria-describedby="grace-help">
+  </label>
+  <p class="note" id="grace-help">Optional. Added to each monthly due date to calculate the grace deadline.</p>
 </template>
 <template id="goals-fields">
   <label>Target ($) <input name="target" type="number" inputmode="decimal" min=".01" max="99999999.99" step=".01" required></label>
@@ -302,6 +329,10 @@ const navLinks = [...document.querySelectorAll(".nav a")];
 const tabs = navLinks.map((link) => link.hash.slice(1));
 const editor = $("editor");
 const form = $("editor-form");
+const incomeEditor = $("income-editor");
+const incomeAmount = $("income-amount");
+const incomeButtons = [...document.querySelectorAll("[data-edit-income]")];
+let incomeEditMonth;
 const storageKey = "money-and-savings-layout-a-v1";
 const moneyFormat = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
 const monthFormat = new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric" });
@@ -324,7 +355,7 @@ try {
 } catch {
   storageReady = false;
   warn("Saved entries could not be loaded. Check your browser’s storage settings or reload the page.");
-  [quickTransaction, ...Object.values(addButtons), ...Object.values(billButtons)].forEach((button) => { button.disabled = true; });
+  [quickTransaction, ...Object.values(addButtons), ...Object.values(billButtons), ...incomeButtons].forEach((button) => { button.disabled = true; });
 }
 if (storageReady) {
   for (const owner of Object.keys(billOwners)) {
@@ -339,7 +370,16 @@ if (storageReady) {
     records = { ...records, bills: [...records.bills, ...starters], [flag]: true };
   }
 }
-monthInput.value = getToday().slice(0, 7);
+let currentDay = getToday();
+monthInput.value = currentDay.slice(0, 7);
+
+function refreshDate() {
+  const today = getToday();
+  if (today === currentDay) return;
+  if (monthInput.value === currentDay.slice(0, 7)) monthInput.value = today.slice(0, 7);
+  currentDay = today;
+  render();
+}
 
 function warn(message, target = $("storage-error")) {
   target.textContent = message;
@@ -384,6 +424,54 @@ const savedText = (goal) => money(goal.saved) + " of " + money(goal.target);
 const parseDate = (date) => new Date(date + "T12:00:00");
 const dateText = (date) => dateFormat.format(parseDate(date));
 const byDate = (a, b) => a.date.localeCompare(b.date);
+const paidMonthsFor = (bill) => bill.paidMonths ?? (bill.paid && bill.date ? [bill.date.slice(0, 7)] : []);
+
+function addCalendarDays(date, days) {
+  const result = parseDate(date);
+  result.setDate(result.getDate() + days);
+  return result;
+}
+
+function billForMonth(bill, month) {
+  const lastDay = new Date(parseDate(month + "-01").getFullYear(), Number(month.slice(5)), 0).getDate();
+  const dueDay = String(Math.min(Number(bill.date.slice(-2)), lastDay)).padStart(2, "0");
+  const dueDate = month + "-" + dueDay;
+  const deadline = bill.graceDays ? addCalendarDays(dueDate, bill.graceDays) : null;
+  const graceEnd = deadline && Number.isFinite(deadline.getTime()) ? deadline : null;
+  return { ...bill, dueDate, graceEnd, paid: paidMonthsFor(bill).includes(month) };
+}
+
+function billOccurrences(bill, currentMonth) {
+  const firstMonth = bill.date.slice(0, 7);
+  const activeMonth = currentMonth < firstMonth ? firstMonth : currentMonth;
+  const occurrences = [billForMonth(bill, activeMonth)];
+  if (!bill.graceDays || activeMonth === firstMonth) return occurrences;
+
+  // Keep any earlier occurrence whose grace period reaches this month.
+  const monthStart = parseDate(currentMonth + "-01");
+  const earlier = new Date(monthStart);
+  while (true) {
+    earlier.setMonth(earlier.getMonth() - 1);
+    const month = String(earlier.getFullYear()).padStart(4, "0") + "-" + String(earlier.getMonth() + 1).padStart(2, "0");
+    if (month < firstMonth) break;
+    const occurrence = billForMonth(bill, month);
+    if (!occurrence.graceEnd || occurrence.graceEnd < monthStart) break;
+    occurrences.push(occurrence);
+  }
+  return occurrences;
+}
+
+function billTiming(bill, today) {
+  let status = "Due";
+  if (bill.paid) status = "Paid";
+  else if (bill.dueDate === today) status = "Due today";
+  else if (bill.dueDate < today) {
+    status = bill.graceEnd && bill.graceEnd >= parseDate(today) ? "In grace period" : "Overdue";
+  }
+  const dueDate = dateText(bill.dueDate);
+  const timing = status === "Due" ? "Due " + dueDate : status + " · " + dueDate;
+  return bill.graceEnd ? timing + " · Grace through " + dateFormat.format(bill.graceEnd) : timing;
+}
 
 function makeRow(collection, record, detail) {
   const item = element("li");
@@ -398,10 +486,17 @@ function makeRow(collection, record, detail) {
   if (collection === "bills" && !setup) {
     const label = record.paid ? "Mark unpaid" : "Mark paid";
     const toggle = button(label, () => {
-      const bills = records.bills.map((bill) => bill.id === record.id ? { ...bill, paid: !bill.paid } : bill);
+      const month = record.dueDate.slice(0, 7);
+      const bills = records.bills.map((bill) => {
+        if (bill.id !== record.id) return bill;
+        const paidMonths = new Set(paidMonthsFor(bill));
+        if (record.paid) paidMonths.delete(month);
+        else paidMonths.add(month);
+        return { ...bill, paidMonths: [...paidMonths] };
+      });
       if (save({ ...records, bills })) billButtons[ownerOfBill(record)].focus();
     }, "secondary");
-    toggle.setAttribute("aria-label", label + " " + record.description);
+    toggle.setAttribute("aria-label", label + " " + record.description + " due " + dateText(record.dueDate));
     actions.append(toggle);
   }
   actions.append(edit);
@@ -476,23 +571,26 @@ function render() {
   const selected = monthInput.value;
   const transactions = records.transactions.filter((entry) => entry.date.slice(0, 7) === selected)
     .sort((a, b) => byDate(b, a));
-  const income = transactions.reduce((sum, entry) => sum + (entry.type === "income" ? entry.amount : 0), 0);
+  const loggedIncome = transactions.reduce((sum, entry) => sum + (entry.type === "income" ? entry.amount : 0), 0);
+  const income = records.monthlyIncome?.[selected] ?? loggedIncome;
   const spending = transactions.reduce((sum, entry) => sum + (entry.type === "expense" ? entry.amount : 0), 0);
   $("budget-income").textContent = money(income);
   $("budget-spending").textContent = money(spending);
   renderRows("transactions", transactions, (entry) =>
     dateText(entry.date) + " · " + (entry.type === "income" ? "Income " : "Expense ") + money(entry.amount));
 
+  const today = getToday();
+  const billMonth = today.slice(0, 7);
+  $("bills-month").textContent = monthFormat.format(parseDate(billMonth + "-01"));
   const bills = records.bills.filter((bill) => bill.date)
-    .sort((a, b) => Number(a.paid) - Number(b.paid) || byDate(a, b));
+    .flatMap((bill) => billOccurrences(bill, billMonth))
+    .sort((a, b) => Number(a.paid) - Number(b.paid) || a.dueDate.localeCompare(b.dueDate));
   const starterBills = records.bills.filter((bill) => !bill.date);
   $("starter-bills-note").hidden = !starterBills.length;
-  const today = getToday();
-  const due = (bill) => bill.paid ? "Paid" : bill.date < today ? "Overdue" : "Due";
   for (const owner of Object.keys(billOwners)) {
     const ownerBills = [...bills, ...starterBills].filter((bill) => ownerOfBill(bill) === owner);
     renderRows("bills", ownerBills, (bill) =>
-      bill.date ? money(bill.amount) + " · " + due(bill) + " · " + dateText(bill.date) : "Amount and due date needed",
+      bill.date ? money(bill.amount) + " · " + billTiming(bill, today) : "Amount and due date needed",
       owner + "-bills");
   }
   renderRows("goals", records.goals, savedText);
@@ -504,7 +602,7 @@ function render() {
   $("home-income").textContent = money(income);
   $("home-spending").textContent = money(spending);
   renderOverviewList("upcoming", bills.filter((bill) => !bill.paid).slice(0, 5),
-    (bill) => due(bill) + " · " + dateText(bill.date) + " · " + billOwners[ownerOfBill(bill)], (bill) => money(bill.amount));
+    (bill) => billTiming(bill, today) + " · " + billOwners[ownerOfBill(bill)], (bill) => money(bill.amount));
   renderOverviewList("recent", transactions.slice(0, 4), (entry) => dateText(entry.date),
     (entry) => (entry.type === "income" ? "+" : "−") + money(entry.amount));
   renderCashFlow(selected, transactions);
@@ -541,7 +639,10 @@ function openEditor(collection, record, owner) {
   $("delete-record").hidden = !record;
   warn("", $("editor-error"));
   const fields = form.elements;
-  if (collection === "bills") fields.billOwner.value = owner;
+  if (collection === "bills") {
+    fields.billOwner.value = owner;
+    fields.graceDays.value = record?.graceDays || "";
+  }
   if (record) fields.description.value = record.description;
   if (fields.date) {
     const today = getToday();
@@ -570,7 +671,39 @@ function finishEdit(collection, owner) {
 Object.entries(addButtons).forEach(([collection, control]) => control.addEventListener("click", () => openEditor(collection)));
 Object.entries(billButtons).forEach(([owner, control]) => control.addEventListener("click", () => openEditor("bills", undefined, owner)));
 quickTransaction.addEventListener("click", () => openEditor("transactions"));
-window.addEventListener("hashchange", () => showTab(true));
+window.addEventListener("hashchange", () => {
+  refreshDate();
+  showTab(true);
+});
+window.addEventListener("focus", refreshDate);
+document.addEventListener("visibilitychange", refreshDate);
+window.setInterval(refreshDate, 60_000);
+
+incomeButtons.forEach((control) => control.addEventListener("click", () => {
+  refreshDate();
+  incomeEditMonth = monthInput.value;
+  const saved = records.monthlyIncome?.[incomeEditMonth];
+  $("income-month").textContent = monthFormat.format(parseDate(incomeEditMonth + "-01"));
+  incomeAmount.value = saved == null ? "" : String(saved / 100);
+  $("income-clear").hidden = saved == null;
+  warn("", $("income-error"));
+  incomeEditor.showModal();
+  incomeAmount.focus();
+}));
+
+function saveMonthlyIncome(amount) {
+  const monthlyIncome = { ...records.monthlyIncome };
+  if (amount == null) delete monthlyIncome[incomeEditMonth];
+  else monthlyIncome[incomeEditMonth] = amount;
+  if (save({ ...records, monthlyIncome }, $("income-error"))) incomeEditor.close();
+}
+
+$("income-form").addEventListener("submit", (event) => {
+  event.preventDefault();
+  saveMonthlyIncome(Math.round(Number(incomeAmount.value) * 100));
+});
+$("income-clear").addEventListener("click", () => saveMonthlyIncome(null));
+$("income-cancel").addEventListener("click", () => incomeEditor.close());
 monthInput.addEventListener("change", () => {
   if (!/^[0-9]{4}-(0[1-9]|1[0-2])$/.test(monthInput.value)) monthInput.value = getToday().slice(0, 7);
   render();
@@ -599,7 +732,13 @@ form.addEventListener("submit", (event) => {
     if (collection === "transactions") update.type = values.get("type");
     else {
       update.owner = values.get("billOwner");
-      update.paid = record?.paid ?? false;
+      update.graceDays = Number(values.get("graceDays") || 0);
+      if (!Number.isSafeInteger(update.graceDays) || update.graceDays < 0 ||
+          Number.isNaN(addCalendarDays(update.date, update.graceDays).getTime())) {
+        warn("Enter a whole number of grace days that results in a valid date.", $("editor-error"));
+        return;
+      }
+      update.paidMonths = record ? paidMonthsFor(records.bills.find((bill) => bill.id === record.id) ?? record) : [];
     }
   }
   const items = record
