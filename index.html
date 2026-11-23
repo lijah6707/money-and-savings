@@ -3,28 +3,30 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#f5f8f4">
+<meta name="theme-color" content="#100e13">
 <title>Money &amp; Savings</title>
 <style>
   :root {
-    color-scheme: light;
+    color-scheme: dark;
     font-family: system-ui, -apple-system, sans-serif;
-    color: #153124;
-    background: #f5f8f4;
-    --green: #105534;
-    --ink: #153124;
-    --muted: #466252;
-    --line: #cfdfd3;
-    --mint: #d9f7e2;
+    color: #fff2fa;
+    background: #100e13;
+    --accent: #ff54bf;
+    --ink: #fff2fa;
+    --muted: #cbb8c6;
+    --line: #473443;
+    --blush: #35132c;
+    --surface: #1c171f;
+    --on-accent: #180013;
   }
   * { box-sizing: border-box; }
   [hidden] { display: none !important; }
   body { margin: 0; padding-bottom: calc(6.75rem + env(safe-area-inset-bottom)); }
   .shell { width: min(100% - 2rem, 44rem); margin-inline: auto; }
-  .masthead { background: #fff; border-bottom: 1px solid var(--line); }
+  .masthead { background: var(--surface); border-bottom: 1px solid var(--line); }
   .masthead .shell { min-height: 4.25rem; display: flex; align-items: center; gap: .7rem; }
-  .brand-mark, .card-mark { display: grid; place-items: center; flex: none; border-radius: .7rem; font-weight: 750; }
-  .brand-mark { width: 2.1rem; height: 2.1rem; background: var(--green); color: #fff; }
+  .brand-mark { display: grid; place-items: center; flex: none; border-radius: .7rem; font-weight: 750; }
+  .brand-mark { width: 2.1rem; height: 2.1rem; background: var(--accent); color: var(--on-accent); }
   .masthead strong { font-size: 1.18rem; }
   main { padding-top: 1.6rem; }
   h1, h2, p { margin: 0; }
@@ -33,35 +35,27 @@
   .heading { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: .65rem; margin-bottom: 1rem; }
   .sub, .muted { color: var(--muted); }
   .sub { margin-top: .25rem; }
-  .summary, .card, .entry-panel { border-radius: 1rem; padding: 1.15rem; border: 1px solid var(--line); }
-  .summary { background: var(--mint); margin-bottom: .85rem; }
-  .summary strong { font-size: clamp(2rem, 9vw, 3.25rem); display: block; letter-spacing: -.045em; overflow-wrap: anywhere; }
-  .home-cards { display: grid; gap: .75rem; }
-  .card { width: 100%; text-align: left; background: white; color: var(--ink); display: flex; align-items: flex-start; gap: .85rem; }
-  .card-content { flex: 1; min-width: 0; overflow-wrap: anywhere; }
-  .card strong { display: block; font-size: 1.12rem; margin-bottom: .2rem; }
-  .card small { display: block; margin-top: .3rem; font-size: .92rem; color: var(--muted); }
-  .card-mark { background: #e8f5ec; color: var(--green); width: 2.4rem; height: 2.4rem; }
-  .card:hover, .nav a:hover { background: #ebf6ee; }
+  .entry-panel { border-radius: 1rem; padding: 1.15rem; border: 1px solid var(--line); }
+  .nav a:hover { background: #301f2d; }
   .note { color: var(--muted); margin-top: 1rem; font-size: .93rem; }
-  .nav { position: fixed; z-index: 2; inset: auto 0 0; border-top: 1px solid var(--line); background: white; padding: .45rem .5rem calc(.45rem + env(safe-area-inset-bottom)); }
+  .nav { position: fixed; z-index: 2; inset: auto 0 0; border-top: 1px solid var(--line); background: var(--surface); padding: .45rem .5rem calc(.45rem + env(safe-area-inset-bottom)); }
   .nav .shell { width: min(100%, 44rem); display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .25rem; }
-  .nav a { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 3.65rem; gap: .12rem; padding: .25rem; color: var(--green); text-decoration: none; border-radius: .65rem; font-weight: 700; font-size: .91rem; }
-  .nav a[aria-current="page"] { background: var(--green); color: #fff; }
+  .nav a { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 3.65rem; gap: .12rem; padding: .25rem; color: var(--accent); text-decoration: none; border-radius: .65rem; font-weight: 700; font-size: .91rem; }
+  .nav a[aria-current="page"] { background: var(--accent); color: var(--on-accent); }
   .icon { font-size: 1.35rem; line-height: 1; font-family: system-ui, sans-serif; }
   button, input, select { font: inherit; }
   button { cursor: pointer; }
   .primary, .secondary, .quiet { min-height: 44px; border: 1px solid transparent; border-radius: .55rem; padding: .45rem .75rem; font-weight: 680; }
-  .primary { background: var(--green); color: white; }
-  .primary:hover { background: #0a4227; }
-  .secondary { background: #e8f5ec; color: var(--green); border-color: var(--line); }
-  .quiet { background: white; color: var(--green); }
-  .quiet:hover { background: #edf6ef; }
-  a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid #26835c; outline-offset: 3px; }
-  .entry-panel { background: #fff; }
+  .primary { background: var(--accent); color: var(--on-accent); }
+  .primary:hover { background: #ff88d2; }
+  .secondary { background: #2d192a; color: var(--accent); border-color: var(--line); }
+  .quiet { background: var(--surface); color: var(--accent); }
+  .quiet:hover { background: #2b1c29; }
+  a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid #ff8bd5; outline-offset: 3px; }
+  .entry-panel { background: var(--surface); }
   #month-input { width: 100%; }
   .totals { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; margin: .85rem 0; }
-  .totals div { background: #edf6ef; border-radius: .65rem; padding: .75rem; overflow-wrap: anywhere; }
+  .totals div { background: #2b1c29; border-radius: .65rem; padding: .75rem; overflow-wrap: anywhere; }
   .totals dt { color: var(--muted); }
   .totals dd { margin: .2rem 0 0; font-weight: 750; font-size: 1.2rem; }
   .list { margin: .5rem 0 0; padding: 0; list-style: none; }
@@ -72,18 +66,68 @@
   .details { flex: 1 1 10rem; min-width: 0; overflow-wrap: anywhere; }
   .details span { display: block; margin-top: .15rem; color: var(--muted); }
   .row-actions { display: flex; flex-wrap: wrap; gap: .3rem; }
-  progress { display: block; width: 100%; height: .75rem; margin: .55rem 0 .1rem; accent-color: var(--green); }
-  dialog { width: min(100% - 2rem, 29rem); max-height: 90vh; padding: 1.25rem; border: 1px solid var(--line); border-radius: 1rem; color: var(--ink); }
-  dialog::backdrop { background: rgb(10 35 21 / .62); }
+  progress { display: block; width: 100%; height: .75rem; margin: .55rem 0 .1rem; accent-color: var(--accent); }
+  dialog { background: var(--surface); width: min(100% - 2rem, 29rem); max-height: 90vh; padding: 1.25rem; border: 1px solid var(--line); border-radius: 1rem; color: var(--ink); }
+  dialog::backdrop { background: rgb(5 4 6 / .76); }
   #fields { display: grid; gap: .85rem; margin-block: 1rem; }
   label { display: grid; gap: .3rem; font-weight: 650; }
-  input, select { min-width: 0; min-height: 44px; padding: .45rem .55rem; color: var(--ink); background: #fff; border: 1px solid #93ac9c; border-radius: .45rem; }
+  input, select { min-width: 0; min-height: 44px; padding: .45rem .55rem; color: var(--ink); background: var(--surface); border: 1px solid #745c70; border-radius: .45rem; }
   .dialog-actions { display: flex; gap: .35rem; justify-content: end; flex-wrap: wrap; }
-  .delete { color: #92251f; margin-right: auto; }
-  .error { color: #852620; padding: .65rem; background: #fff0ef; border-radius: .4rem; margin-bottom: .75rem; }
-  @media (min-width: 640px) {
-    main { padding-top: 2.25rem; }
-    .home-cards { grid-template-columns: 1fr 1fr; }
+  .delete { color: #ff9eaa; margin-right: auto; }
+  .error { color: #ffb4bc; padding: .65rem; background: #3b1b26; border-radius: .4rem; margin-bottom: .75rem; }
+  .dashboard, .overview-totals { display: grid; gap: .9rem; }
+  .overview-totals { grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 0; }
+  .overview-totals > div { padding: .85rem; border: 1px solid var(--line); border-radius: .8rem; background: var(--surface); }
+  .overview-totals > div:first-child { background: var(--blush); }
+  .overview-totals dt { font-size: .85rem; color: var(--muted); }
+  .overview-totals dd { margin: .35rem 0 0; font-weight: 760; font-size: clamp(.92rem, 2vw, 1.45rem); overflow-wrap: anywhere; }
+  .overview-totals .negative { color: #ff9eaa; }
+  .entry-panel { min-width: 0; }
+  .panel-heading { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: .4rem .75rem; }
+  .panel-heading a { color: var(--accent); font-size: .88rem; font-weight: 700; text-underline-offset: .16em; }
+  .overview-list { margin: .5rem 0 0; padding: 0; list-style: none; }
+  .overview-list:empty { display: none; }
+  .overview-list li { display: flex; justify-content: space-between; align-items: baseline; gap: .7rem; padding: .75rem 0; border-bottom: 1px solid var(--line); }
+  .overview-list li:last-child { border-bottom: 0; padding-bottom: 0; }
+  .overview-list li > div { min-width: 0; overflow-wrap: anywhere; }
+  .overview-list small { display: block; margin-top: .2rem; color: var(--muted); }
+  .overview-list .overdue { color: #ff9eaa; font-weight: 650; }
+  .overview-list .amount { flex: none; font-size: .94rem; font-variant-numeric: tabular-nums; }
+  .chart-key { display: flex; gap: .45rem .9rem; flex-wrap: wrap; margin-top: .65rem; color: var(--muted); font-size: .82rem; }
+  .chart-key span::before { content: ""; display: inline-block; width: .65rem; height: .65rem; margin-right: .35rem; border-radius: .18rem; background: var(--accent); }
+  .chart-key span:nth-child(2)::before, .bars span:nth-child(2) { background: #c895ff; }
+  .chart { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: .45rem; list-style: none; margin: .75rem 0 0; padding: 0; }
+  .chart li { text-align: center; color: var(--muted); font-size: .75rem; }
+  .bars { display: flex; align-items: end; justify-content: center; gap: .22rem; height: 7rem; border-bottom: 1px solid var(--line); margin-bottom: .35rem; }
+  .bars span { width: min(32%, 1.65rem); border-radius: .22rem .22rem 0 0; background: var(--accent); }
+  .savings-preview progress { margin-top: .7rem; }
+  .savings-preview #home-progress-text { margin-top: .4rem; }
+  main > .note:last-child { font-size: .82rem; }
+  @media (min-width: 900px) {
+    :root { --sidebar-width: clamp(13rem, 19vw, 17rem); --obsidian: #09080b; }
+    body { display: grid; grid-template-columns: var(--sidebar-width) minmax(0, 1fr); grid-template-rows: auto 1fr; min-height: 100vh; padding-bottom: 0; background: linear-gradient(90deg, var(--obsidian) var(--sidebar-width), #100e13 var(--sidebar-width)); }
+    .masthead { position: sticky; top: 0; z-index: 2; grid-column: 1; grid-row: 1; background: var(--obsidian); color: white; border: 0; }
+    .masthead .shell { width: auto; min-height: 5.1rem; padding: .8rem 1rem; }
+    .brand-mark { background: #ff54bf; color: var(--obsidian); }
+    .nav { position: sticky; inset: 5.1rem auto auto; align-self: start; grid-column: 1; grid-row: 2; padding: .3rem .85rem; border: 0; background: var(--obsidian); }
+    .nav .shell { width: auto; grid-template-columns: minmax(0, 1fr); gap: .35rem; }
+    .nav a { flex-direction: row; justify-content: start; gap: .75rem; min-height: 2.85rem; padding: .6rem .78rem; color: #ffedf5; }
+    .nav a:hover { background: #291622; }
+    .nav a[aria-current="page"] { background: #3a172f; }
+    .nav a[aria-current="page"] .icon { color: #ff85d0; }
+    .nav .icon { width: 1.35rem; text-align: center; }
+    main.shell { grid-column: 2; grid-row: 1 / 3; width: min(100%, 96rem); padding: clamp(1.4rem, 3vw, 3rem); }
+    .dashboard { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(15rem, 1.7fr); align-items: stretch; grid-template-areas: "totals totals bills" "cash cash bills" "savings savings recent"; }
+    .overview-totals { grid-area: totals; }
+    .upcoming { grid-area: bills; }
+    .cash-flow { grid-area: cash; }
+    .savings-preview { grid-area: savings; }
+    .recent { grid-area: recent; }
+    .cash-flow { min-height: 13rem; }
+    #month-input { max-width: 15rem; }
+  }
+  @media (min-width: 1200px) {
+    .dashboard { grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(19rem, 1.25fr); grid-template-areas: "totals totals totals bills" "cash cash cash bills" "savings savings recent recent"; gap: 1rem; }
   }
 </style>
 </head>
@@ -95,23 +139,44 @@
   <p id="storage-error" class="error" role="alert" hidden></p>
 
   <section id="home-panel" aria-labelledby="home-title">
-    <div class="heading"><div><h1 id="home-title" tabindex="-1">This month</h1><p id="home-month" class="sub"></p></div></div>
-    <div class="summary">
-      <strong id="home-total">$0.00 left</strong>
-      <p id="home-summary">Income minus spending</p>
+    <div class="heading">
+      <div><h1 id="home-title" tabindex="-1">Bills overview</h1><p id="home-month" class="sub"></p></div>
+      <button type="button" class="primary" id="quick-transaction">Add transaction</button>
     </div>
-    <div class="home-cards">
-      <button type="button" class="card" data-open="bills">
-        <span class="card-mark" aria-hidden="true">▦</span>
-        <span class="card-content"><strong>Upcoming bill</strong><span id="home-bill">No unpaid bills</span></span>
-      </button>
-      <button type="button" class="card" data-open="savings">
-        <span class="card-mark" aria-hidden="true">◇</span>
-        <span class="card-content"><strong>Savings goal</strong><span id="home-goal">Set a savings goal</span>
-          <progress id="home-progress" aria-label="Savings goal progress" hidden></progress>
-          <small id="home-progress-text" hidden></small>
-        </span>
-      </button>
+    <div class="dashboard">
+      <dl class="overview-totals" aria-label="Monthly budget totals">
+        <div><dt>Left this month</dt><dd id="home-total">$0.00</dd></div>
+        <div><dt>Income</dt><dd id="home-income">$0.00</dd></div>
+        <div><dt>Spending</dt><dd id="home-spending">$0.00</dd></div>
+      </dl>
+
+      <section class="entry-panel upcoming" aria-labelledby="upcoming-title">
+        <div class="panel-heading"><h2 id="upcoming-title">Upcoming bills</h2><a href="#bills">View bills</a></div>
+        <p class="note" id="upcoming-empty">No unpaid bills.</p>
+        <ul class="overview-list" id="upcoming-list"></ul>
+      </section>
+
+      <section class="entry-panel cash-flow" aria-labelledby="cash-title">
+        <h2 id="cash-title">Cash flow</h2>
+        <p class="note" id="cash-empty">Add a transaction to see your income and spending for the month.</p>
+        <div id="cash-chart" hidden>
+          <p class="chart-key"><span>Income</span><span>Spending</span></p>
+          <ol class="chart" id="cash-bars" aria-label="Income and spending by date range"></ol>
+        </div>
+      </section>
+
+      <section class="entry-panel savings-preview" aria-labelledby="goal-preview-title">
+        <div class="panel-heading"><h2 id="goal-preview-title">Savings goal</h2><a href="#savings">View savings</a></div>
+        <p class="note" id="home-goal">Set a savings goal to track your progress.</p>
+        <progress id="home-progress" aria-label="Savings goal progress" hidden></progress>
+        <p class="note" id="home-progress-text" hidden></p>
+      </section>
+
+      <section class="entry-panel recent" aria-labelledby="recent-title">
+        <div class="panel-heading"><h2 id="recent-title">Recent transactions</h2><a href="#budget">View budget</a></div>
+        <p class="note" id="recent-empty">No transactions for this month.</p>
+        <ul class="overview-list" id="recent-list"></ul>
+      </section>
     </div>
   </section>
 
@@ -195,6 +260,7 @@ const $ = (id) => document.getElementById(id);
 const tabs = ["home", "budget", "bills", "savings"];
 const collections = { transactions: "transaction", bills: "bill", goals: "savings goal" };
 const addButtons = Object.fromEntries([...document.querySelectorAll("[data-add]")].map((button) => [button.dataset.add, button]));
+const quickTransaction = $("quick-transaction");
 const navLinks = [...document.querySelectorAll(".nav a")];
 const editor = $("editor");
 const form = $("editor-form");
@@ -220,7 +286,7 @@ try {
 } catch {
   storageReady = false;
   warn("Saved entries could not be loaded. Check your browser’s storage settings or reload the page.");
-  Object.values(addButtons).forEach((button) => { button.disabled = true; });
+  [quickTransaction, ...Object.values(addButtons)].forEach((button) => { button.disabled = true; });
 }
 monthInput.value = getToday().slice(0, 7);
 
@@ -302,6 +368,50 @@ function renderRows(collection, items, description) {
   $(collection + "-list").replaceChildren(...items.map((item) => makeRow(collection, item, description(item))));
 }
 
+function renderOverviewList(name, items, details, amount) {
+  $(name + "-empty").hidden = items.length > 0;
+  $(name + "-list").replaceChildren(...items.map((item) => {
+    const row = element("li");
+    const copy = element("div");
+    const detail = details(item);
+    copy.append(element("strong", item.description), element("small", detail, detail.startsWith("Overdue") ? "overdue" : undefined));
+    row.append(copy, element("strong", amount(item), "amount"));
+    return row;
+  }));
+}
+
+function renderCashFlow(selected, transactions) {
+  $("cash-empty").hidden = transactions.length > 0;
+  $("cash-chart").hidden = !transactions.length;
+  if (!transactions.length) return;
+
+  const lastDay = new Date(parseDate(selected + "-01").getFullYear(), Number(selected.slice(5)), 0).getDate();
+  const weeks = Array.from({ length: Math.ceil(lastDay / 7) }, (_, index) => ({
+    start: index * 7 + 1, end: Math.min((index + 1) * 7, lastDay), income: 0, expense: 0,
+  }));
+  for (const entry of transactions) {
+    const day = Number(entry.date.slice(-2));
+    weeks[Math.floor((day - 1) / 7)][entry.type] += entry.amount;
+  }
+  const max = Math.max(1, ...weeks.flatMap((week) => [week.income, week.expense]));
+  $("cash-bars").replaceChildren(...weeks.map((week) => {
+    const label = week.start === week.end ? String(week.start) : week.start + "–" + week.end;
+    const item = element("li");
+    const bar = element("div", undefined, "bars");
+    const description = "Days " + label + ": income " + money(week.income) + ", spending " + money(week.expense);
+    item.title = description;
+    item.setAttribute("aria-label", description);
+    bar.setAttribute("aria-hidden", "true");
+    for (const value of [week.income, week.expense]) {
+      const column = element("span");
+      column.style.height = (value / max * 100) + "%";
+      bar.append(column);
+    }
+    item.append(bar, element("span", label));
+    return item;
+  }));
+}
+
 function render() {
   const selected = monthInput.value;
   const transactions = records.transactions.filter((entry) => entry.date.slice(0, 7) === selected)
@@ -319,14 +429,19 @@ function render() {
   renderRows("bills", bills, (bill) => money(bill.amount) + " · " + due(bill) + " · " + dateText(bill.date));
   renderRows("goals", records.goals, savedText);
 
-  $("home-title").textContent = selected === today.slice(0, 7) ? "This month" : "Monthly overview";
   $("home-month").textContent = monthFormat.format(parseDate(selected + "-01"));
   const balance = income - spending;
-  $("home-total").textContent = balance < 0 ? money(-balance) + " over income" : money(balance) + " left";
-  const unpaid = bills.find((bill) => !bill.paid);
-  $("home-bill").textContent = unpaid ? unpaid.description + " · " + money(unpaid.amount) : "No unpaid bills";
+  $("home-total").textContent = money(balance);
+  $("home-total").classList.toggle("negative", balance < 0);
+  $("home-income").textContent = money(income);
+  $("home-spending").textContent = money(spending);
+  renderOverviewList("upcoming", bills.filter((bill) => !bill.paid).slice(0, 5),
+    (bill) => due(bill) + " · " + dateText(bill.date), (bill) => money(bill.amount));
+  renderOverviewList("recent", transactions.slice(0, 4), (entry) => dateText(entry.date),
+    (entry) => (entry.type === "income" ? "+" : "−") + money(entry.amount));
+  renderCashFlow(selected, transactions);
   const goal = records.goals[0];
-  $("home-goal").textContent = goal ? goal.description : "Set a savings goal";
+  $("home-goal").textContent = goal ? goal.description : "Set a savings goal to track your progress.";
   $("home-progress").hidden = !goal;
   $("home-progress-text").hidden = !goal;
   if (goal) {
@@ -373,13 +488,12 @@ function openEditor(collection, record) {
 
 function finishEdit(collection) {
   editor.close();
-  addButtons[collection].focus();
+  const control = collection === "transactions" && !$("home-panel").hidden ? quickTransaction : addButtons[collection];
+  control.focus();
 }
 
 Object.entries(addButtons).forEach(([collection, control]) => control.addEventListener("click", () => openEditor(collection)));
-document.querySelectorAll("[data-open]").forEach((control) => {
-  control.addEventListener("click", () => { location.hash = control.dataset.open; });
-});
+quickTransaction.addEventListener("click", () => openEditor("transactions"));
 window.addEventListener("hashchange", () => showTab(true));
 monthInput.addEventListener("change", () => {
   if (!/^[0-9]{4}-(0[1-9]|1[0-2])$/.test(monthInput.value)) monthInput.value = getToday().slice(0, 7);
