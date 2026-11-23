@@ -102,6 +102,10 @@
   #income-form > label { margin: 1rem 0; }
   .overview-totals .negative { color: #ff9eaa; }
   .entry-panel { min-width: 0; }
+  .misc-month { max-width: 15rem; margin-bottom: 1rem; }
+  .misc-panel { margin-top: 1rem; padding: .75rem; border: 1px solid var(--line); border-radius: .65rem; }
+  .misc-panel summary { cursor: pointer; color: var(--accent); font-weight: 700; padding-block: .3rem; }
+  .misc-actions { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .6rem; }
   .household-bills { display: grid; gap: 1rem; align-items: start; }
   .bill-note { margin: 0 0 .9rem; }
   @media (min-width: 1060px) {
@@ -237,6 +241,7 @@
     <div class="heading"><div><h1 id="bills-title" tabindex="-1">Bills</h1><p id="bills-month" class="sub"></p></div></div>
     <p class="note bill-note">Bills repeat monthly. Paid status resets at the start of each month.</p>
     <p class="note bill-note" id="starter-bills-note" hidden>Set up any starter bill with your amount and due date, or remove it from the list.</p>
+    <label class="misc-month">Miscellaneous month <input id="misc-month" type="month"></label>
     <div class="household-bills">
       <section class="entry-panel" aria-labelledby="husband-bills-title">
         <div class="panel-heading">
@@ -245,6 +250,15 @@
         </div>
         <p class="note" id="husband-bills-empty">No bills yet.</p>
         <ul class="list" id="husband-bills-list"></ul>
+        <details class="misc-panel" id="husband-misc">
+          <summary>Miscellaneous <span id="husband-misc-count"></span></summary>
+          <div class="misc-actions">
+            <button type="button" class="secondary" data-misc-expense="husband">Add one-time expense</button>
+            <button type="button" class="secondary" data-misc-bill="husband">Add monthly payment</button>
+          </div>
+          <p class="note" id="husband-misc-empty">No miscellaneous payments for this month.</p>
+          <ul class="list" id="husband-misc-list"></ul>
+        </details>
       </section>
       <section class="entry-panel" aria-labelledby="wife-bills-title">
         <div class="panel-heading">
@@ -253,6 +267,15 @@
         </div>
         <p class="note" id="wife-bills-empty">No bills yet.</p>
         <ul class="list" id="wife-bills-list"></ul>
+        <details class="misc-panel" id="wife-misc">
+          <summary>Miscellaneous <span id="wife-misc-count"></span></summary>
+          <div class="misc-actions">
+            <button type="button" class="secondary" data-misc-expense="wife">Add one-time expense</button>
+            <button type="button" class="secondary" data-misc-bill="wife">Add monthly payment</button>
+          </div>
+          <p class="note" id="wife-misc-empty">No miscellaneous payments for this month.</p>
+          <ul class="list" id="wife-misc-list"></ul>
+        </details>
       </section>
     </div>
     <p class="note">To include a paid bill in your budget, add it as an expense under Budget.</p>
@@ -309,6 +332,10 @@
   </form>
 </dialog>
 
+<template id="expense-fields">
+  <label>Amount ($) <input name="amount" type="number" inputmode="decimal" min=".01" max="99999999.99" step=".01" required></label>
+  <label>Payment date <input name="date" type="date" required></label>
+</template>
 <template id="transactions-fields">
   <label>Type <select name="type"><option value="expense">Expense</option><option value="income">Income</option></select></label>
   <label>Amount ($) <input name="amount" type="number" inputmode="decimal" min=".01" max="99999999.99" step=".01" required></label>
@@ -338,6 +365,8 @@ const $ = (id) => document.getElementById(id);
 const collections = { transactions: "transaction", bills: "bill", goals: "savings goal" };
 const addButtons = Object.fromEntries([...document.querySelectorAll("[data-add]")].map((button) => [button.dataset.add, button]));
 const billButtons = Object.fromEntries([...document.querySelectorAll("[data-bill-owner]")].map((button) => [button.dataset.billOwner, button]));
+const miscExpenseButtons = Object.fromEntries([...document.querySelectorAll("[data-misc-expense]")].map((button) => [button.dataset.miscExpense, button]));
+const miscBillButtons = Object.fromEntries([...document.querySelectorAll("[data-misc-bill]")].map((button) => [button.dataset.miscBill, button]));
 const billOwners = { husband: "Husband", wife: "Wife" };
 const ownerOfBill = (bill) => bill.owner === "wife" ? "wife" : "husband";
 const quickTransaction = $("quick-transaction");
@@ -358,7 +387,8 @@ const getToday = () => {
   return [now.getFullYear(), now.getMonth() + 1, now.getDate()].map((part) => String(part).padStart(2, "0")).join("-");
 };
 const monthInput = $("month-input");
-const starterBillNames = ["Rent or mortgage", "Electricity", "Water", "Internet", "Cell phone", "Car payment", "Car insurance", "Subscriptions"];
+const miscMonth = $("misc-month");
+const starterBillNames = ["Rent or mortgage", "Electricity", "Water", "Internet", "Cell phone", "Car payment", "Car insurance"];
 let records = { transactions: [], bills: [], goals: [] };
 let editState;
 let storageReady = true;
@@ -371,9 +401,11 @@ try {
 } catch {
   storageReady = false;
   warn("Saved entries could not be loaded. Check your browser’s storage settings or reload the page.");
-  [quickTransaction, ...Object.values(addButtons), ...Object.values(billButtons), ...incomeButtons].forEach((button) => { button.disabled = true; });
+  [quickTransaction, ...Object.values(addButtons), ...Object.values(billButtons), ...incomeButtons, ...Object.values(miscExpenseButtons), ...Object.values(miscBillButtons)].forEach((button) => { button.disabled = true; });
 }
 if (storageReady) {
+  records.bills = records.bills.filter((bill) => bill.date ||
+    !/^starter-(?:(?:husband|wife)-)?subscriptions$/.test(bill.id));
   for (const owner of Object.keys(billOwners)) {
     const flag = owner === "husband" ? "starterBillsAdded" : "wifeStarterBillsAdded";
     if (records[flag]) continue;
@@ -489,7 +521,7 @@ function billTiming(bill, today) {
   return bill.graceEnd ? timing + " · Grace through " + dateFormat.format(bill.graceEnd) : timing;
 }
 
-function makeRow(collection, record, detail) {
+function makeRow(collection, record, detail, fromMisc = false) {
   const item = element("li");
   const line = element("div", undefined, "line");
   const labels = element("div", undefined, "details");
@@ -497,7 +529,7 @@ function makeRow(collection, record, detail) {
   const actions = element("div", undefined, "row-actions");
   const setup = collection === "bills" && !record.date;
   const editLabel = setup ? "Set up" : "Edit";
-  const edit = button(editLabel, () => openEditor(collection, record));
+  const edit = button(editLabel, () => openEditor(collection, record, undefined, fromMisc));
   edit.setAttribute("aria-label", editLabel + " " + record.description);
   if (collection === "bills" && !setup) {
     const label = record.paid ? "Mark unpaid" : "Mark paid";
@@ -510,7 +542,7 @@ function makeRow(collection, record, detail) {
         else paidMonths.add(month);
         return { ...bill, paidMonths: [...paidMonths] };
       });
-      if (save({ ...records, bills })) billButtons[ownerOfBill(record)].focus();
+      if (save({ ...records, bills })) (record.misc ? miscBillButtons : billButtons)[ownerOfBill(record)].focus();
     }, "secondary");
     toggle.setAttribute("aria-label", label + " " + record.description + " due " + dateText(record.dueDate));
     actions.append(toggle);
@@ -518,7 +550,7 @@ function makeRow(collection, record, detail) {
   actions.append(edit);
   if (collection === "bills") {
     const remove = button("Remove", () => {
-      if (removeRecord(collection, record)) billButtons[ownerOfBill(record)].focus();
+      if (removeRecord(collection, record)) (record.misc ? miscBillButtons : billButtons)[ownerOfBill(record)].focus();
     });
     remove.setAttribute("aria-label", "Remove " + record.description);
     actions.append(remove);
@@ -585,6 +617,7 @@ function renderCashFlow(selected, transactions) {
 
 function render() {
   const selected = monthInput.value;
+  miscMonth.value = selected;
   const transactions = records.transactions.filter((entry) => entry.date.slice(0, 7) === selected)
     .sort((a, b) => byDate(b, a));
   const loggedIncome = transactions.reduce((sum, entry) => sum + (entry.type === "income" ? entry.amount : 0), 0);
@@ -603,8 +636,20 @@ function render() {
     .sort((a, b) => Number(a.paid) - Number(b.paid) || a.dueDate.localeCompare(b.dueDate));
   const starterBills = records.bills.filter((bill) => !bill.date);
   $("starter-bills-note").hidden = !starterBills.length;
+  const miscBills = records.bills.filter((bill) => bill.misc && bill.date && bill.date.slice(0, 7) <= selected)
+    .flatMap((bill) => billOccurrences(bill, selected))
+    .sort((a, b) => Number(a.paid) - Number(b.paid) || a.dueDate.localeCompare(b.dueDate));
   for (const owner of Object.keys(billOwners)) {
-    const ownerBills = [...bills, ...starterBills].filter((bill) => ownerOfBill(bill) === owner);
+    const ownerBills = [...bills, ...starterBills].filter((bill) => !bill.misc && ownerOfBill(bill) === owner);
+    const miscRows = [
+      ...miscBills.filter((bill) => ownerOfBill(bill) === owner).map((bill) =>
+        makeRow("bills", bill, money(bill.amount) + " · " + billTiming(bill, today), true)),
+      ...transactions.filter((entry) => entry.miscOwner === owner).map((entry) =>
+        makeRow("transactions", entry, "Expense · " + money(entry.amount) + " · " + dateText(entry.date), true))
+    ];
+    $(owner + "-misc-list").replaceChildren(...miscRows);
+    $(owner + "-misc-empty").hidden = miscRows.length > 0;
+    $(owner + "-misc-count").textContent = miscRows.length ? "(" + miscRows.length + ")" : "";
     renderRows("bills", ownerBills, (bill) =>
       bill.date ? money(bill.amount) + " · " + billTiming(bill, today) : "Amount and due date needed",
       owner + "-bills");
@@ -652,12 +697,15 @@ function showTab(moveFocus) {
   }
 }
 
-function openEditor(collection, record, owner) {
+function openEditor(collection, record, owner, fromMisc = false) {
   if (collection === "bills" && record) owner = ownerOfBill(record);
-  editState = { collection, record, owner };
+  const miscBill = collection === "bills" && (fromMisc || record?.misc);
+  const miscOwner = collection === "transactions" ? record?.miscOwner ?? (fromMisc ? owner : undefined) : undefined;
+  editState = { collection, record, owner, miscOwner, miscBill, fromMisc };
   const setup = collection === "bills" && record && !record.date;
-  $("editor-title").textContent = (setup ? "Set up " : record ? "Edit " : "Add ") + collections[collection];
-  $("fields").replaceChildren($("description-field").content.cloneNode(true), $(collection + "-fields").content.cloneNode(true));
+  $("editor-title").textContent = (setup ? "Set up " : record ? "Edit " : "Add ") + (miscBill ? "monthly payment" : miscOwner ? "one-time expense" : collections[collection]);
+  const template = miscOwner ? "expense-fields" : collection + "-fields";
+  $("fields").replaceChildren($("description-field").content.cloneNode(true), $(template).content.cloneNode(true));
   $("delete-record").hidden = !record;
   warn("", $("editor-error"));
   const fields = form.elements;
@@ -669,7 +717,7 @@ function openEditor(collection, record, owner) {
   if (fields.date) {
     const today = getToday();
     const selected = monthInput.value;
-    fields.date.value = record?.date ?? (collection === "transactions" && selected !== today.slice(0, 7) ? selected + "-01" : today);
+    fields.date.value = record?.date ?? ((collection === "transactions" || fromMisc) && selected !== today.slice(0, 7) ? selected + "-01" : today);
   }
   if (record && fields.type) fields.type.value = record.type;
   if (record?.amount != null && fields.amount) fields.amount.value = record.amount / 100;
@@ -680,8 +728,13 @@ function openEditor(collection, record, owner) {
   editor.showModal();
 }
 
-function finishEdit(collection, owner) {
+function finishEdit(collection, owner, fromMisc) {
   editor.close();
+  if (fromMisc) {
+    $(owner + "-misc").open = true;
+    (collection === "bills" ? miscBillButtons : miscExpenseButtons)[owner].focus();
+    return;
+  }
   if (collection === "bills") {
     billButtons[owner].focus();
     return;
@@ -692,6 +745,10 @@ function finishEdit(collection, owner) {
 
 Object.entries(addButtons).forEach(([collection, control]) => control.addEventListener("click", () => openEditor(collection)));
 Object.entries(billButtons).forEach(([owner, control]) => control.addEventListener("click", () => openEditor("bills", undefined, owner)));
+for (const owner of Object.keys(billOwners)) {
+  miscExpenseButtons[owner].addEventListener("click", () => openEditor("transactions", undefined, owner, true));
+  miscBillButtons[owner].addEventListener("click", () => openEditor("bills", undefined, owner, true));
+}
 quickTransaction.addEventListener("click", () => openEditor("transactions"));
 window.addEventListener("hashchange", () => {
   refreshDate();
@@ -726,10 +783,10 @@ $("income-form").addEventListener("submit", (event) => {
 });
 $("income-clear").addEventListener("click", () => saveMonthlyIncome(null));
 $("income-cancel").addEventListener("click", () => incomeEditor.close());
-monthInput.addEventListener("change", () => {
-  if (!/^[0-9]{4}-(0[1-9]|1[0-2])$/.test(monthInput.value)) monthInput.value = getToday().slice(0, 7);
+[monthInput, miscMonth].forEach((input) => input.addEventListener("change", () => {
+  monthInput.value = /^[0-9]{4}-(0[1-9]|1[0-2])$/.test(input.value) ? input.value : getToday().slice(0, 7);
   render();
-});
+}));
 $("cancel").addEventListener("click", () => editor.close());
 form.addEventListener("input", () => form.elements.description.setCustomValidity(""));
 
@@ -743,7 +800,7 @@ form.addEventListener("submit", (event) => {
     return;
   }
   const asCents = (field) => Math.round(Number(values.get(field)) * 100);
-  const { collection, record } = editState;
+  const { collection, record, miscOwner, miscBill, fromMisc } = editState;
   const update = { id: record?.id ?? crypto.randomUUID(), description };
   if (collection === "goals") {
     update.target = asCents("target");
@@ -751,8 +808,11 @@ form.addEventListener("submit", (event) => {
   } else {
     update.amount = asCents("amount");
     update.date = values.get("date");
-    if (collection === "transactions") update.type = values.get("type");
-    else {
+    if (collection === "transactions") {
+      update.type = miscOwner ? "expense" : values.get("type");
+      if (miscOwner) update.miscOwner = miscOwner;
+    } else {
+      if (miscBill) update.misc = true;
       update.owner = values.get("billOwner");
       update.graceDays = Number(values.get("graceDays") || 0);
       if (!Number.isSafeInteger(update.graceDays) || update.graceDays < 0 ||
@@ -767,11 +827,11 @@ form.addEventListener("submit", (event) => {
     ? records[collection].map((item) => item.id === record.id ? update : item)
     : [...records[collection], update];
   if (save({ ...records, [collection]: items }, $("editor-error"))) {
-    if (collection === "transactions") {
+    if (collection === "transactions" || (!record && fromMisc)) {
       monthInput.value = update.date.slice(0, 7);
       render();
     }
-    finishEdit(collection, update.owner);
+    finishEdit(collection, update.owner ?? miscOwner, fromMisc);
   }
 });
 
@@ -782,8 +842,8 @@ function removeRecord(collection, record, errorTarget) {
 }
 
 $("delete-record").addEventListener("click", () => {
-  const { collection, record, owner } = editState;
-  if (record && removeRecord(collection, record, $("editor-error"))) finishEdit(collection, owner);
+  const { collection, record, owner, miscOwner, fromMisc } = editState;
+  if (record && removeRecord(collection, record, $("editor-error"))) finishEdit(collection, owner ?? miscOwner, fromMisc);
 });
 
 render();
