@@ -106,7 +106,14 @@
   .overview-totals .negative { color: #ff9eaa; }
   .entry-panel { min-width: 0; }
   .month-control { max-width: 15rem; margin-bottom: 1rem; }
-  .payday-dates { display: flex; flex-wrap: wrap; gap: .35rem .8rem; margin: .65rem 0 0; font-size: .88rem; color: var(--muted); }
+  .payday-dates { display: grid; gap: .5rem; margin-top: .7rem; }
+  .paycheck-row { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: .35rem; padding: .5rem .65rem; border: 1px solid var(--line); border-radius: .55rem; }
+  .paycheck-row span { min-width: 0; overflow-wrap: anywhere; font-size: .92rem; }
+  .paycheck-row button { text-align: left; }
+  #paycheck-form > label { margin-block: .75rem; }
+  @media (min-width: 680px) {
+    .payday-dates { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
   .pay-schedule-fields { display: grid; gap: .65rem; min-width: 0; border: 1px solid var(--line); border-radius: .65rem; margin: .85rem 0; padding: .8rem; }
   .pay-schedule-fields legend { font-weight: 700; padding: 0 .2rem; }
   @media (min-width: 420px) {
@@ -273,7 +280,10 @@
           <h2 id="payday-title">Bills due by next payday</h2>
           <button type="button" class="secondary" id="edit-paydays" aria-haspopup="dialog">Set paydays</button>
         </div>
-        <p class="payday-dates" id="payday-dates" hidden><span id="husband-next-payday"></span><span id="wife-next-payday"></span></p>
+        <div class="payday-dates" id="payday-dates" hidden>
+          <div class="paycheck-row"><span id="husband-next-payday"></span><button class="quiet" type="button" id="husband-adjust-pay" aria-label="Adjust husband's paycheck">Adjust paycheck</button></div>
+          <div class="paycheck-row"><span id="wife-next-payday"></span><button class="quiet" type="button" id="wife-adjust-pay" aria-label="Adjust wife's paycheck">Adjust paycheck</button></div>
+        </div>
         <p class="note" id="payday-message" aria-live="polite"></p>
         <ul class="overview-list" id="payday-list"></ul>
       </section>
@@ -426,6 +436,9 @@
           <option value="monthly">Monthly</option>
         </select>
       </label>
+      <label>Usual take-home pay ($)
+        <input id="husband-usual-pay" type="number" min="0" max="99999999.99" step=".01" inputmode="decimal" placeholder="Optional">
+      </label>
       <label id="husband-pay-second-label" hidden>Other day of the month
         <input id="husband-pay-second-day" type="number" min="1" max="31" step="1" inputmode="numeric">
       </label>
@@ -442,6 +455,9 @@
           <option value="monthly">Monthly</option>
         </select>
       </label>
+      <label>Usual take-home pay ($)
+        <input id="wife-usual-pay" type="number" min="0" max="99999999.99" step=".01" inputmode="decimal" placeholder="Optional">
+      </label>
       <label id="wife-pay-second-label" hidden>Other day of the month
         <input id="wife-pay-second-day" type="number" min="1" max="31" step="1" inputmode="numeric">
       </label>
@@ -450,6 +466,23 @@
     <div class="dialog-actions">
       <button type="button" id="pay-schedules-cancel" class="secondary">Cancel</button>
       <button type="submit" class="primary">Save paydays</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="paycheck-dialog" aria-labelledby="paycheck-title">
+  <form id="paycheck-form">
+    <h2 id="paycheck-title">Adjust paycheck</h2>
+    <label>Pay date <input id="paycheck-date" type="date" required></label>
+    <label>Take-home pay ($)
+      <input id="paycheck-amount" type="number" min="0" max="99999999.99" step=".01" inputmode="decimal" required>
+    </label>
+    <p class="note">This change applies only to the date shown. Enter 0 if you’re expecting no pay for this period.</p>
+    <p class="error" id="paycheck-error" role="alert" hidden></p>
+    <div class="dialog-actions">
+      <button type="button" id="paycheck-reset" class="quiet" hidden>Use usual pay</button>
+      <button type="button" id="paycheck-cancel" class="secondary">Cancel</button>
+      <button type="submit" class="primary">Save amount</button>
     </div>
   </form>
 </dialog>
@@ -739,10 +772,16 @@ function undoBillPayment(bill) {
   if (saveBillPayment(bill)) (bill.misc ? miscBillButtons : billButtons)[ownerOfBill(bill)].focus();
 }
 
+const validPayAmount = (cents) => Number.isSafeInteger(cents) && cents >= 0 && cents <= 9999999999;
+const dollarsToPayCents = (value) => value === "" ? null : Math.round(Number(value) * 100);
+
 const payFrequencies = ["once", "weekly", "biweekly", "twice-monthly", "monthly"];
 
 function validPaySchedule(schedule) {
   return schedule && validDay(schedule.date) && payFrequencies.includes(schedule.frequency) &&
+    (schedule.amount == null || validPayAmount(schedule.amount)) &&
+    (schedule.amountByDate == null || (typeof schedule.amountByDate === "object" && !Array.isArray(schedule.amountByDate) &&
+      Object.entries(schedule.amountByDate).every(([date, amount]) => validDay(date) && validPayAmount(amount)))) &&
     (schedule.frequency !== "twice-monthly" || (Number.isInteger(schedule.secondDay) &&
       schedule.secondDay >= 1 && schedule.secondDay <= 31 && schedule.secondDay !== Number(schedule.date.slice(-2))));
 }
@@ -777,8 +816,13 @@ function nextScheduledPayday(schedule, today) {
 function renderPayday(today) {
   const schedules = records.paySchedules ?? {};
   const nextDates = Object.keys(billOwners).map((owner) => {
-    const next = nextScheduledPayday(schedules[owner], today);
-    $(owner + "-next-payday").textContent = billOwners[owner] + " · " + (next ? dateText(next) : "No upcoming payday");
+    const schedule = schedules[owner];
+    const next = nextScheduledPayday(schedule, today);
+    const amount = schedule?.amountByDate?.[next] ?? schedule?.amount;
+    const adjusted = next && schedule?.amountByDate?.[next] != null;
+    const detail = next ? dateText(next) + " · " + (amount == null ? "Amount not set" : money(amount)) : "No upcoming payday";
+    $(owner + "-next-payday").textContent = billOwners[owner] + " · " + detail + (adjusted ? " (adjusted)" : "");
+    $(owner + "-adjust-pay").hidden = !validPaySchedule(schedule);
     return next;
   });
   const hasSchedules = Object.values(schedules).some(validPaySchedule);
@@ -860,6 +904,7 @@ const payScheduleFields = Object.keys(billOwners).map((owner) => {
   const frequency = $(owner + "-pay-frequency");
   const secondDay = $(owner + "-pay-second-day");
   const secondLabel = $(owner + "-pay-second-label");
+  const usualPay = $(owner + "-usual-pay");
   const updateSecondDay = () => {
     secondLabel.hidden = frequency.value !== "twice-monthly";
     secondDay.disabled = secondLabel.hidden;
@@ -867,14 +912,15 @@ const payScheduleFields = Object.keys(billOwners).map((owner) => {
   };
   date.addEventListener("change", updateSecondDay);
   frequency.addEventListener("change", updateSecondDay);
-  return { owner, date, frequency, secondDay, updateSecondDay };
+  return { owner, date, frequency, secondDay, usualPay, updateSecondDay };
 });
 $("edit-paydays").addEventListener("click", () => {
-  for (const { owner, date, frequency, secondDay, updateSecondDay } of payScheduleFields) {
+  for (const { owner, date, frequency, secondDay, usualPay, updateSecondDay } of payScheduleFields) {
     const schedule = records.paySchedules?.[owner];
     date.value = schedule?.date ?? "";
     frequency.value = schedule?.frequency ?? "once";
     secondDay.value = schedule?.secondDay ?? "";
+    usualPay.value = schedule?.amount == null ? "" : String(schedule.amount / 100);
     updateSecondDay();
   }
   warn("", $("pay-schedules-error"));
@@ -885,10 +931,18 @@ $("pay-schedules-form").addEventListener("submit", (event) => {
   event.preventDefault();
   const schedules = {};
   const error = $("pay-schedules-error");
-  for (const { owner, date, frequency, secondDay } of payScheduleFields) {
+  for (const { owner, date, frequency, secondDay, usualPay } of payScheduleFields) {
     if (!date.value) continue;
     const schedule = { date: date.value, frequency: frequency.value };
     if (frequency.value === "twice-monthly") schedule.secondDay = Number(secondDay.value);
+    const amount = dollarsToPayCents(usualPay.value);
+    if (amount != null && !validPayAmount(amount)) {
+      warn("Enter a valid take-home amount for " + billOwners[owner] + ".", error);
+      return;
+    }
+    if (amount != null) schedule.amount = amount;
+    const overrides = records.paySchedules?.[owner]?.amountByDate;
+    if (overrides) schedule.amountByDate = overrides;
     if (!validPaySchedule(schedule)) {
       warn(billOwners[owner] + ": enter a valid pay date. If paid twice a month, choose two different days.", error);
       return;
@@ -897,6 +951,62 @@ $("pay-schedules-form").addEventListener("submit", (event) => {
   }
   if (save({ ...records, paySchedules: schedules, nextPayday: null }, error)) paySchedulesDialog.close();
 });
+
+const paycheckDialog = $("paycheck-dialog");
+const paycheckDate = $("paycheck-date");
+const paycheckAmount = $("paycheck-amount");
+const paycheckReset = $("paycheck-reset");
+let paycheckOwner;
+
+function refreshPaycheckAmount() {
+  const schedule = records.paySchedules?.[paycheckOwner];
+  const override = schedule?.amountByDate?.[paycheckDate.value];
+  const amount = override ?? schedule?.amount;
+  paycheckAmount.value = amount == null ? "" : String(amount / 100);
+  paycheckReset.hidden = override == null;
+  warn("", $("paycheck-error"));
+}
+
+for (const owner of Object.keys(billOwners)) {
+  $(owner + "-adjust-pay").addEventListener("click", () => {
+    const schedule = records.paySchedules?.[owner];
+    if (!validPaySchedule(schedule)) return;
+    paycheckOwner = owner;
+    $("paycheck-title").textContent = "Adjust paycheck · " + billOwners[owner];
+    paycheckDate.value = nextScheduledPayday(schedule, getToday()) ?? schedule.date;
+    refreshPaycheckAmount();
+    paycheckDialog.showModal();
+  });
+}
+paycheckDate.addEventListener("change", refreshPaycheckAmount);
+$("paycheck-cancel").addEventListener("click", () => paycheckDialog.close());
+
+function savePaycheckAmount(amount) {
+  const schedule = records.paySchedules?.[paycheckOwner];
+  const date = paycheckDate.value;
+  const error = $("paycheck-error");
+  if (!schedule || !validDay(date) ||
+      (schedule.amountByDate?.[date] == null && nextScheduledPayday(schedule, date) !== date)) {
+    warn("Choose a date on this person's pay schedule.", error);
+    return;
+  }
+  const amountByDate = { ...schedule.amountByDate };
+  if (amount == null) delete amountByDate[date];
+  else amountByDate[date] = amount;
+  const paySchedules = { ...records.paySchedules, [paycheckOwner]: { ...schedule, amountByDate } };
+  if (save({ ...records, paySchedules }, error)) paycheckDialog.close();
+}
+
+$("paycheck-form").addEventListener("submit", (event) => {
+  event.preventDefault();
+  const amount = dollarsToPayCents(paycheckAmount.value);
+  if (!validPayAmount(amount)) {
+    warn("Enter a valid take-home amount.", $("paycheck-error"));
+    return;
+  }
+  savePaycheckAmount(amount);
+});
+paycheckReset.addEventListener("click", () => savePaycheckAmount(null));
 
 $("backup-export").addEventListener("click", () => {
   const backup = { format: "money-and-savings", version: 1, data: records };
