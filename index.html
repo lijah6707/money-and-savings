@@ -82,6 +82,9 @@
   .row-actions { display: flex; flex-wrap: wrap; gap: .3rem; }
   progress { display: block; width: 100%; height: .75rem; margin: .55rem 0 .1rem; accent-color: var(--accent); }
   dialog { background: var(--surface); width: min(100% - 2rem, 29rem); max-height: 90vh; padding: 1.25rem; border: 1px solid var(--line); border-radius: 1rem; color: var(--ink); }
+  @supports (height: 100dvh) {
+    dialog { max-height: min(90vh, calc(100dvh - 2rem - env(safe-area-inset-top) - env(safe-area-inset-bottom))); }
+  }
   dialog::backdrop { background: rgb(5 4 6 / .76); }
   #fields { display: grid; gap: .85rem; margin-block: 1rem; }
   label { display: grid; gap: .3rem; font-weight: 650; }
@@ -103,9 +106,13 @@
   .overview-totals .negative { color: #ff9eaa; }
   .entry-panel { min-width: 0; }
   .month-control { max-width: 15rem; margin-bottom: 1rem; }
-  .payday { margin-bottom: 1rem; }
-  .payday input { max-width: 15rem; }
-  .payday form, .backup-actions { display: flex; align-items: end; flex-wrap: wrap; gap: .55rem; margin-top: .75rem; }
+  .payday-dates { display: flex; flex-wrap: wrap; gap: .35rem .8rem; margin: .65rem 0 0; font-size: .88rem; color: var(--muted); }
+  .pay-schedule-fields { display: grid; gap: .65rem; min-width: 0; border: 1px solid var(--line); border-radius: .65rem; margin: .85rem 0; padding: .8rem; }
+  .pay-schedule-fields legend { font-weight: 700; padding: 0 .2rem; }
+  @media (min-width: 420px) {
+    .pay-schedule-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+  .backup-actions { display: flex; align-items: end; flex-wrap: wrap; gap: .55rem; margin-top: .75rem; }
   .payday #payday-message { margin-top: .65rem; }
   .backup-panel { margin-top: 1rem; }
   .backup-panel summary { cursor: pointer; color: var(--accent); font-weight: 700; }
@@ -146,7 +153,7 @@
   .overview-list li > div { min-width: 0; overflow-wrap: anywhere; }
   .overview-list small { display: block; margin-top: .2rem; color: var(--muted); }
   .overview-list .overdue { color: #ff9eaa; font-weight: 650; }
-  .overview-list .amount { flex: none; font-size: .94rem; font-variant-numeric: tabular-nums; }
+  .overview-list .amount { flex: 0 1 auto; min-width: 0; max-width: 48%; overflow-wrap: anywhere; text-align: right; font-size: .94rem; font-variant-numeric: tabular-nums; }
   .chart-key { display: flex; gap: .45rem .9rem; flex-wrap: wrap; margin-top: .65rem; color: var(--muted); font-size: .82rem; }
   .chart-key span::before { content: ""; display: inline-block; width: .65rem; height: .65rem; margin-right: .35rem; border-radius: .18rem; background: var(--accent); }
   .chart-key span:nth-child(2)::before, .bars span:nth-child(2) { background: #c895ff; }
@@ -170,9 +177,10 @@
     .nav a[aria-current="page"] { background: var(--accent); color: var(--on-accent); }
     .nav .icon { width: 1.35rem; text-align: center; }
     main.shell { grid-column: 2; grid-row: 1 / 3; width: min(100%, 96rem); padding: clamp(1.4rem, 3vw, 3rem); }
-    .dashboard { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(15rem, 1.7fr); align-items: stretch; grid-template-areas: "totals totals bills" "cash cash bills" "savings savings recent"; }
+    .dashboard { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(15rem, 1.7fr); align-items: stretch; grid-template-areas: "totals totals bills" "cash cash bills" "payday payday payday" "savings savings recent"; }
     .overview-totals { grid-area: totals; }
     .upcoming { grid-area: bills; }
+    .payday { grid-area: payday; }
     .cash-flow { grid-area: cash; }
     .savings-preview { grid-area: savings; }
     .recent { grid-area: recent; }
@@ -181,7 +189,51 @@
   }
   @media (min-width: 1200px) {
     .overview-totals { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-    .dashboard { grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(19rem, 1.25fr); grid-template-areas: "totals totals totals bills" "cash cash cash bills" "savings savings recent recent"; gap: 1rem; }
+    .dashboard { grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(19rem, 1.25fr); grid-template-areas: "totals totals totals bills" "cash cash cash bills" "payday payday payday payday" "savings savings recent recent"; gap: 1rem; }
+  }
+
+  @media (width < 900px) {
+    :root { --phone-gutter: max(clamp(.75rem, 3.5vw, 1.25rem), env(safe-area-inset-left), env(safe-area-inset-right)); }
+    .shell { width: min(100% - var(--phone-gutter) - var(--phone-gutter), 44rem); margin-inline: auto; }
+    body { padding-bottom: calc(5.25rem + env(safe-area-inset-bottom)); }
+    body::before { opacity: .18; }
+    .masthead { padding-top: env(safe-area-inset-top); }
+    .masthead .shell { min-height: 3.5rem; }
+    main { padding-top: .9rem; }
+    .month-control { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; max-width: none; }
+    #month-input { width: auto; min-width: min(10.25rem, 100%); max-width: 100%; }
+    .heading { row-gap: .55rem; margin-bottom: .75rem; }
+    .heading > div { min-width: 0; }
+    .entry-panel { padding: .9rem; }
+    .dashboard, .overview-totals, .household-bills { gap: .65rem; }
+    .overview-totals > div { padding: .7rem; }
+    .overview-totals dd { font-size: clamp(1.08rem, 4.5vw, 1.4rem); }
+    .nav {
+      padding: .35rem max(.5rem, env(safe-area-inset-right)) calc(.35rem + env(safe-area-inset-bottom)) max(.5rem, env(safe-area-inset-left));
+    }
+    .nav .shell { width: 100%; margin-inline: auto; }
+    .nav a { min-height: 3.15rem; font-size: .83rem; }
+    .list .line { align-items: start; }
+    .list .details { flex-basis: 100%; }
+    .row-actions, .misc-actions { width: 100%; }
+    .row-actions button, .misc-actions button, .backup-actions button {
+      max-width: 100%;
+      overflow-wrap: anywhere;
+    }
+    .row-actions .secondary { flex: 0 1 auto; }
+    .misc-actions button { flex: 1 1 9rem; }
+    .misc-panel summary, .saved-goals summary, .backup-panel summary { min-height: 44px; padding-block: .65rem; }
+    .panel-heading a { display: inline-flex; align-items: center; min-height: 44px; }
+    .panel-heading { align-items: center; }
+    input, select { font-size: 1rem; }
+    dialog { padding: 1rem; }
+    dialog label { min-width: 0; }
+    dialog input:not([type="checkbox"]), dialog select { width: 100%; }
+  }
+  @media (max-width: 380px) {
+    .heading > .primary { width: 100%; }
+    .row-actions .secondary { flex-basis: 100%; }
+    .row-actions .quiet { flex: 1 1 auto; }
   }
 </style>
 </head>
@@ -198,16 +250,6 @@
       <div><h1 id="home-title" tabindex="-1">Bills overview</h1><p id="home-month" class="sub"></p></div>
       <button type="button" class="primary" id="quick-transaction">Add transaction</button>
     </div>
-    <section class="entry-panel payday" aria-labelledby="payday-title">
-      <h2 id="payday-title">Bills due by next payday</h2>
-      <form id="payday-form">
-        <label>Next payday <input id="payday-date" type="date" required></label>
-        <button class="primary" id="save-payday" type="submit">Set payday</button>
-        <button class="quiet" id="clear-payday" type="button" hidden>Clear date</button>
-      </form>
-      <p class="note" id="payday-message" aria-live="polite"></p>
-      <ul class="overview-list" id="payday-list"></ul>
-    </section>
     <div class="dashboard">
       <dl class="overview-totals" aria-label="Monthly budget totals">
         <div><dt>Left this month</dt><dd id="home-total">$0.00</dd></div>
@@ -224,6 +266,16 @@
           <span id="upcoming-total-label">Total unpaid this month</span>
           <strong id="upcoming-total-amount">$0.00</strong>
         </p>
+      </section>
+
+      <section class="entry-panel payday" aria-labelledby="payday-title">
+        <div class="panel-heading">
+          <h2 id="payday-title">Bills due by next payday</h2>
+          <button type="button" class="secondary" id="edit-paydays" aria-haspopup="dialog">Set paydays</button>
+        </div>
+        <p class="payday-dates" id="payday-dates" hidden><span id="husband-next-payday"></span><span id="wife-next-payday"></span></p>
+        <p class="note" id="payday-message" aria-live="polite"></p>
+        <ul class="overview-list" id="payday-list"></ul>
       </section>
 
       <section class="entry-panel cash-flow" aria-labelledby="cash-title">
@@ -358,6 +410,50 @@
   </form>
 </dialog>
 
+<dialog id="pay-schedules" aria-labelledby="pay-schedules-title">
+  <form id="pay-schedules-form">
+    <h2 id="pay-schedules-title">Paydays</h2>
+    <p class="note">Enter a known payday for each person. Leave a date blank to clear that schedule.</p>
+    <fieldset class="pay-schedule-fields">
+      <legend>Husband</legend>
+      <label>Pay date <input id="husband-pay-date" type="date"></label>
+      <label>Repeats
+        <select id="husband-pay-frequency">
+          <option value="once">One time</option>
+          <option value="weekly">Weekly</option>
+          <option value="biweekly">Every two weeks</option>
+          <option value="twice-monthly">Twice a month</option>
+          <option value="monthly">Monthly</option>
+        </select>
+      </label>
+      <label id="husband-pay-second-label" hidden>Other day of the month
+        <input id="husband-pay-second-day" type="number" min="1" max="31" step="1" inputmode="numeric">
+      </label>
+    </fieldset>
+    <fieldset class="pay-schedule-fields">
+      <legend>Wife</legend>
+      <label>Pay date <input id="wife-pay-date" type="date"></label>
+      <label>Repeats
+        <select id="wife-pay-frequency">
+          <option value="once">One time</option>
+          <option value="weekly">Weekly</option>
+          <option value="biweekly">Every two weeks</option>
+          <option value="twice-monthly">Twice a month</option>
+          <option value="monthly">Monthly</option>
+        </select>
+      </label>
+      <label id="wife-pay-second-label" hidden>Other day of the month
+        <input id="wife-pay-second-day" type="number" min="1" max="31" step="1" inputmode="numeric">
+      </label>
+    </fieldset>
+    <p class="error" id="pay-schedules-error" role="alert" hidden></p>
+    <div class="dialog-actions">
+      <button type="button" id="pay-schedules-cancel" class="secondary">Cancel</button>
+      <button type="submit" class="primary">Save paydays</button>
+    </div>
+  </form>
+</dialog>
+
 <dialog id="bill-payment" aria-labelledby="bill-payment-title">
   <form id="bill-payment-form">
     <h2 id="bill-payment-title">Record payment</h2>
@@ -450,7 +546,7 @@ const monthInput = $("month-input");
 const paymentDialog = $("bill-payment");
 let paymentBill;
 const editControls = [quickTransaction, ...Object.values(addButtons), ...Object.values(billButtons), ...incomeButtons,
-  ...Object.values(miscExpenseButtons), ...Object.values(miscBillButtons), $("save-payday"), $("clear-payday"), $("backup-export")];
+  ...Object.values(miscExpenseButtons), ...Object.values(miscBillButtons), $("edit-paydays"), $("backup-export")];
 const starterBillNames = ["Rent or mortgage", "Electricity", "Water", "Internet", "Cell phone", "Car payment", "Car insurance"];
 let records = { transactions: [], bills: [], goals: [] };
 let editState;
@@ -643,15 +739,57 @@ function undoBillPayment(bill) {
   if (saveBillPayment(bill)) (bill.misc ? miscBillButtons : billButtons)[ownerOfBill(bill)].focus();
 }
 
+const payFrequencies = ["once", "weekly", "biweekly", "twice-monthly", "monthly"];
+
+function validPaySchedule(schedule) {
+  return schedule && validDay(schedule.date) && payFrequencies.includes(schedule.frequency) &&
+    (schedule.frequency !== "twice-monthly" || (Number.isInteger(schedule.secondDay) &&
+      schedule.secondDay >= 1 && schedule.secondDay <= 31 && schedule.secondDay !== Number(schedule.date.slice(-2))));
+}
+
+function nextScheduledPayday(schedule, today) {
+  if (!validPaySchedule(schedule)) return null;
+  const { date, frequency, secondDay } = schedule;
+  if (frequency === "once") return date >= today ? date : null;
+  const threshold = date > today ? date : today;
+  if (frequency === "weekly" || frequency === "biweekly") {
+    const dayMs = 86400000;
+    const interval = (frequency === "weekly" ? 7 : 14) * dayMs;
+    const start = Date.parse(date + "T00:00:00Z");
+    const earliest = Date.parse(threshold + "T00:00:00Z");
+    return new Date(start + Math.ceil((earliest - start) / interval) * interval).toISOString().slice(0, 10);
+  }
+
+  const days = frequency === "monthly" ? [Number(date.slice(-2))] : [Number(date.slice(-2)), secondDay];
+  const cursor = parseDate(threshold.slice(0, 7) + "-01");
+  for (let offset = 0; offset < 2; offset += 1) {
+    const month = String(cursor.getFullYear()).padStart(4, "0") + "-" + String(cursor.getMonth() + 1).padStart(2, "0");
+    const lastDate = new Date(cursor);
+    lastDate.setMonth(lastDate.getMonth() + 1, 0);
+    const candidates = days.map((day) => month + "-" + String(Math.min(day, lastDate.getDate())).padStart(2, "0"))
+      .filter((day) => day >= threshold).sort();
+    if (candidates.length) return candidates[0];
+    cursor.setMonth(cursor.getMonth() + 1);
+  }
+  return null;
+}
+
 function renderPayday(today) {
-  const payday = records.nextPayday;
-  $("payday-date").min = today;
-  $("payday-date").value = payday ?? "";
-  $("clear-payday").hidden = !payday;
+  const schedules = records.paySchedules ?? {};
+  const nextDates = Object.keys(billOwners).map((owner) => {
+    const next = nextScheduledPayday(schedules[owner], today);
+    $(owner + "-next-payday").textContent = billOwners[owner] + " · " + (next ? dateText(next) : "No upcoming payday");
+    return next;
+  });
+  const hasSchedules = Object.values(schedules).some(validPaySchedule);
+  const legacyPayday = !hasSchedules && records.nextPayday >= today ? records.nextPayday : null;
+  const payday = nextDates.filter(Boolean).sort()[0] ?? legacyPayday;
+  $("payday-dates").hidden = !hasSchedules;
+  $("edit-paydays").textContent = hasSchedules || legacyPayday ? "Edit paydays" : "Set paydays";
   const list = $("payday-list");
   const message = $("payday-message");
-  if (!payday || payday < today) {
-    message.textContent = payday ? "Set your next payday to see the new total." : "Set a payday to see how much to set aside.";
+  if (!payday) {
+    message.textContent = hasSchedules ? "Add your next pay date to see what to set aside." : "Set a payday to see how much to set aside.";
     list.replaceChildren();
     return;
   }
@@ -697,6 +835,8 @@ function validBackup(data) {
       (bill.graceDays == null || cents(bill.graceDays)) &&
       (bill.paidMonths == null || (Array.isArray(bill.paidMonths) && bill.paidMonths.every(validMonth))))) return false;
   return (data.nextPayday == null || validDay(data.nextPayday)) &&
+    (data.paySchedules == null || (isObject(data.paySchedules) &&
+      Object.entries(data.paySchedules).every(([owner, schedule]) => Object.hasOwn(billOwners, owner) && validPaySchedule(schedule)))) &&
     (data.monthlyIncome == null || (isObject(data.monthlyIncome) &&
       Object.entries(data.monthlyIncome).every(([month, value]) => validMonth(month) && cents(value))));
 }
@@ -714,12 +854,49 @@ $("bill-payment-form").addEventListener("submit", (event) => {
   }
 });
 $("bill-payment-cancel").addEventListener("click", () => paymentDialog.close());
-$("payday-form").addEventListener("submit", (event) => {
-  event.preventDefault();
-  const nextPayday = $("payday-date").value;
-  if (validDay(nextPayday) && nextPayday >= getToday()) save({ ...records, nextPayday });
+const paySchedulesDialog = $("pay-schedules");
+const payScheduleFields = Object.keys(billOwners).map((owner) => {
+  const date = $(owner + "-pay-date");
+  const frequency = $(owner + "-pay-frequency");
+  const secondDay = $(owner + "-pay-second-day");
+  const secondLabel = $(owner + "-pay-second-label");
+  const updateSecondDay = () => {
+    secondLabel.hidden = frequency.value !== "twice-monthly";
+    secondDay.disabled = secondLabel.hidden;
+    secondDay.required = !secondLabel.hidden && Boolean(date.value);
+  };
+  date.addEventListener("change", updateSecondDay);
+  frequency.addEventListener("change", updateSecondDay);
+  return { owner, date, frequency, secondDay, updateSecondDay };
 });
-$("clear-payday").addEventListener("click", () => save({ ...records, nextPayday: null }));
+$("edit-paydays").addEventListener("click", () => {
+  for (const { owner, date, frequency, secondDay, updateSecondDay } of payScheduleFields) {
+    const schedule = records.paySchedules?.[owner];
+    date.value = schedule?.date ?? "";
+    frequency.value = schedule?.frequency ?? "once";
+    secondDay.value = schedule?.secondDay ?? "";
+    updateSecondDay();
+  }
+  warn("", $("pay-schedules-error"));
+  paySchedulesDialog.showModal();
+});
+$("pay-schedules-cancel").addEventListener("click", () => paySchedulesDialog.close());
+$("pay-schedules-form").addEventListener("submit", (event) => {
+  event.preventDefault();
+  const schedules = {};
+  const error = $("pay-schedules-error");
+  for (const { owner, date, frequency, secondDay } of payScheduleFields) {
+    if (!date.value) continue;
+    const schedule = { date: date.value, frequency: frequency.value };
+    if (frequency.value === "twice-monthly") schedule.secondDay = Number(secondDay.value);
+    if (!validPaySchedule(schedule)) {
+      warn(billOwners[owner] + ": enter a valid pay date. If paid twice a month, choose two different days.", error);
+      return;
+    }
+    schedules[owner] = schedule;
+  }
+  if (save({ ...records, paySchedules: schedules, nextPayday: null }, error)) paySchedulesDialog.close();
+});
 
 $("backup-export").addEventListener("click", () => {
   const backup = { format: "money-and-savings", version: 1, data: records };
